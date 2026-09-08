@@ -24,6 +24,11 @@ import {
   AlertCircle,
   FileText,
   UserX,
+  MinusCircle,
+  Edit,
+  Lock,
+  Unlock,
+  RotateCcw,
 } from 'lucide-react'
 import {
   stageRacesService,
@@ -100,9 +105,11 @@ export default function RaceModerationPage() {
   const [newComment, setNewComment] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
+  const [isTogglingRaceLock, setIsTogglingRaceLock] = useState(false)
 
-  // Incident Modal State
+  // Incident Modal State (Add / Edit)
   const [isCaseModalOpen, setIsCaseModalOpen] = useState(false)
+  const [editingCaseId, setEditingCaseId] = useState<string | null>(null)
   const [caseLap, setCaseLap] = useState<string>('1') // free text
   const [selectedPilots, setSelectedPilots] = useState<IncidentPilotOption[]>([])
   const [pilotSearchQuery, setPilotSearchQuery] = useState('')
@@ -110,11 +117,16 @@ export default function RaceModerationPage() {
   const [guiltyPilotId, setGuiltyPilotId] = useState<string>('SEM_CULPADO')
   const [infractionQuery, setInfractionQuery] = useState('')
   const [isInfractionDropdownOpen, setIsInfractionDropdownOpen] = useState(false)
-  const [caseDescription, setCaseDescription] = useState('')
+  const [caseDescription, setCaseDescription] = useState('') // max 120
   const [isSavingCase, setIsSavingCase] = useState(false)
 
-  // Confirm cancel dialog
+  // Confirm delete / cancel dialog
   const [cancelTargetCaseId, setCancelTargetCaseId] = useState<string | null>(null)
+  const [isDeletingCase, setIsDeletingCase] = useState(false)
+
+  // Confirm race close / reopen dialog
+  const [isRaceLockConfirmOpen, setIsRaceLockConfirmOpen] = useState(false)
+  const [raceLockAction, setRaceLockAction] = useState<'close' | 'reopen'>('close')
 
   const pilotInputRef = useRef<HTMLInputElement>(null)
   const infractionInputRef = useRef<HTMLInputElement>(null)
@@ -168,6 +180,40 @@ export default function RaceModerationPage() {
   const stage = race?.expand?.stage_id
   const champ = championship || stage?.expand?.championship_id
   const track = stage?.expand?.track
+
+  const isRaceClosed = Boolean(race?.is_closed)
+  // Non-collaborators cannot edit when closed
+  const canEditRace = isCollaborator || !isRaceClosed
+
+  // Map of pilot number per championship pilot
+  const pilotNumberMap = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const cp of champPilots) {
+      if (cp.pilot && cp.number !== undefined && cp.number !== null) {
+        map.set(cp.pilot, cp.number)
+      }
+      if (cp.id && cp.number !== undefined && cp.number !== null) {
+        map.set(cp.id, cp.number)
+      }
+    }
+    return map
+  }, [champPilots])
+
+  // Helper to format pilot badge label as "#número - Nome"
+  const getPilotDisplayLabel = (p: {
+    id: string
+    name?: string
+    number?: number
+    pilotRecordId?: string
+  }) => {
+    const num =
+      p.number !== undefined && p.number !== null
+        ? p.number
+        : ((p.pilotRecordId ? pilotNumberMap.get(p.pilotRecordId) : undefined) ??
+          pilotNumberMap.get(p.id))
+    const numStr = num !== undefined && num !== null && String(num) !== '' ? `#${num}` : '#'
+    return `${numStr} - ${p.name || 'Piloto'}`
+  }
 
   // 1. Pilotos inscritos no campeonato (normalizados com iracing_id, nome, número)
   const championshipPilotOptions: IncidentPilotOption[] = useMemo(() => {
@@ -225,7 +271,7 @@ export default function RaceModerationPage() {
     return list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
   }, [champPilots, raceResults, allPilots])
 
-  // Filter pilots by autocomplete, case-insensitive e IGNORANDO ACENTOS (ex.: "jos" acha "José")
+  // Filter pilots by autocomplete, case-insensitive e IGNORANDO ACENTOS
   const filteredPilots = useMemo(() => {
     const q = normalizeSearch(pilotSearchQuery)
     const selectedIds = new Set(selectedPilots.map((p) => p.id))
@@ -243,7 +289,7 @@ export default function RaceModerationPage() {
       })
   }, [championshipPilotOptions, selectedPilots, pilotSearchQuery])
 
-  // 2. Regulamento: lista de infrações passíveis de punição (1 por linha)
+  // 2. Regulamento: lista de infrações passíveis de punição
   const regulationInfractions: string[] = useMemo(() => {
     const list: string[] = []
     if (champ?.regulation_rules && Array.isArray(champ.regulation_rules)) {
@@ -255,7 +301,6 @@ export default function RaceModerationPage() {
       }
     }
 
-    // Fallbacks from migration if championship has empty rules
     if (list.length === 0) {
       list.push(
         'Art. 12.1 / Toque evitável com ganho de posição (-5 pts)',
@@ -288,6 +333,15 @@ export default function RaceModerationPage() {
 
   // Open New Incident Modal
   const handleOpenIncidentModal = () => {
+    if (isRaceClosed && !isCollaborator) {
+      toast({
+        title: 'Corrida Fechada',
+        description: 'Esta corrida está fechada para novos registros de comissários.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setEditingCaseId(null)
     setCaseLap('1')
     setSelectedPilots([])
     setPilotSearchQuery('')
@@ -296,6 +350,60 @@ export default function RaceModerationPage() {
     setInfractionQuery(regulationInfractions[0] || '')
     setIsInfractionDropdownOpen(false)
     setCaseDescription('')
+    setIsCaseModalOpen(true)
+  }
+
+  // Open Edit Incident Modal
+  const handleEditCase = (c: ModerationCase) => {
+    if (isRaceClosed && !isCollaborator) {
+      toast({
+        title: 'Corrida Fechada',
+        description: 'Apenas administradores podem editar incidentes em corridas fechadas.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setEditingCaseId(c.id)
+    setCaseLap(String(c.lap || '1'))
+    setCaseDescription((c.description || '').slice(0, 120))
+    setInfractionQuery(c.infraction_cited || '')
+
+    // Resolve involved pilots to IncidentPilotOption
+    const involvedIds = c.involved_pilots || []
+    const matchingPilots: IncidentPilotOption[] = []
+    for (const pid of involvedIds) {
+      const found = championshipPilotOptions.find(
+        (opt) => opt.id === pid || opt.pilotRecordId === pid,
+      )
+      if (found) {
+        matchingPilots.push(found)
+      } else {
+        const rawPilot = allPilots.find((p) => p.id === pid)
+        if (rawPilot) {
+          matchingPilots.push({
+            id: rawPilot.id,
+            name: rawPilot.name,
+            number: rawPilot.number,
+            team: rawPilot.team_name,
+            pilotRecordId: rawPilot.id,
+          })
+        }
+      }
+    }
+    setSelectedPilots(matchingPilots)
+
+    if (c.guilty_pilot_id) {
+      const match = matchingPilots.find(
+        (p) => p.id === c.guilty_pilot_id || p.pilotRecordId === c.guilty_pilot_id,
+      )
+      setGuiltyPilotId(match ? match.id : c.guilty_pilot_id)
+    } else {
+      setGuiltyPilotId('SEM_CULPADO')
+    }
+
+    setIsPilotDropdownOpen(false)
+    setIsInfractionDropdownOpen(false)
     setIsCaseModalOpen(true)
   }
 
@@ -319,10 +427,18 @@ export default function RaceModerationPage() {
    * Final Decision Handlers:
    * Action a) APLICAR: aplica a PUNIÇÃO AUTOMÁTICA prevista no regulamento (status: "Aplicado em corrida")
    * Action b) PÓS CORRIDA: marca para análise depois do término da etapa (status: "Aplicado pós corrida")
-   * Action c) CANCELAR: zera/descarta o registro por completo com confirmação
    */
   const handleSaveDecision = async (decisionType: 'APLICAR' | 'POS_CORRIDA') => {
     if (!raceId || !champ?.id) return
+
+    if (isRaceClosed && !isCollaborator) {
+      toast({
+        title: 'Corrida Fechada',
+        description: 'A corrida está fechada para alterações.',
+        variant: 'destructive',
+      })
+      return
+    }
 
     if (selectedPilots.length === 0) {
       toast({
@@ -345,98 +461,116 @@ export default function RaceModerationPage() {
     try {
       setIsSavingCase(true)
 
-      // Sequencial anti-duplicidade por corrida
-      const currentCounter = (race?.case_counter || 0) + 1
-      const generatedCode = generateModerationCode({
-        year: champ.expand?.season_id?.expand?.year_id?.year || new Date().getFullYear(),
-        seasonName: champ.expand?.season_id?.name,
-        championshipName: champ.name,
-        championshipShortCode: champ.short_code,
-        stageOrder: stage?.order ?? 1,
-        raceOrder: race?.order ?? 1,
-        caseSequence: currentCounter,
-      })
-
       const targetStatus: ModerationCaseStatus =
         decisionType === 'APLICAR' ? 'Aplicado em corrida' : 'Aplicado pós corrida'
 
       const isGuilty = guiltyPilotId !== 'SEM_CULPADO'
       const actualGuiltyPilot = isGuilty ? selectedPilots.find((p) => p.id === guiltyPilotId) : null
 
-      // Resolve guilty pilot ID (must be a valid record in pilots collection if possible)
       let resolvedGuiltyPilotRecordId: string | undefined = undefined
       if (actualGuiltyPilot) {
         resolvedGuiltyPilotRecordId = actualGuiltyPilot.pilotRecordId || actualGuiltyPilot.id
       }
 
-      // Involved pilot record IDs
       const involvedRecordIds = selectedPilots.map((p) => p.pilotRecordId || p.id).filter(Boolean)
 
-      // Auto penalty from infraction item
       const penalty = parsePenaltyFromInfraction(infractionQuery)
       const penaltyText =
         decisionType === 'APLICAR'
           ? penalty.displayText
           : 'Em análise comissária para julgamento pós-corrida'
 
-      // Deadline: 24h from now for defense/version
-      const deadlineDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      const trimmedDesc = caseDescription.trim().slice(0, 120)
 
-      // 1. Create moderation case
-      const createdCase = await moderationCasesService.create({
-        stage_race_id: raceId,
-        championship_id: champ.id,
-        code: generatedCode,
-        case_number: currentCounter,
-        lap: caseLap.trim() || '1',
-        involved_pilots: involvedRecordIds,
-        guilty_pilot_id: resolvedGuiltyPilotRecordId,
-        opened_by_type: 'comissarios',
-        author_user_id: user?.id,
-        status: targetStatus,
-        infraction_cited: infractionQuery.trim(),
-        penalty_applied: penaltyText,
-        penalty_points: decisionType === 'APLICAR' ? penalty.points : 0,
-        penalty_seconds: decisionType === 'APLICAR' ? penalty.seconds : 0,
-        penalty_positions: decisionType === 'APLICAR' ? penalty.positions : 0,
-        penalty_type: penalty.penaltyType,
-        description: caseDescription.trim(),
-        deadline: deadlineDate,
-        cancelled: false,
-      })
-
-      // 2. Increment race case counter
-      try {
-        await stageRacesService.update(raceId, {
-          case_counter: currentCounter,
+      if (editingCaseId) {
+        // UPDATE existing case
+        await moderationCasesService.update(editingCaseId, {
+          lap: caseLap.trim() || '1',
+          involved_pilots: involvedRecordIds,
+          guilty_pilot_id: resolvedGuiltyPilotRecordId || undefined,
+          status: targetStatus,
+          infraction_cited: infractionQuery.trim(),
+          penalty_applied: penaltyText,
+          penalty_points: decisionType === 'APLICAR' ? penalty.points : 0,
+          penalty_seconds: decisionType === 'APLICAR' ? penalty.seconds : 0,
+          penalty_positions: decisionType === 'APLICAR' ? penalty.positions : 0,
+          penalty_type: penalty.penaltyType,
+          description: trimmedDesc,
+          cancelled: false,
         })
-      } catch (err) {
-        console.error('Error updating race case counter:', err)
+
+        toast({
+          title: 'Incidente Atualizado',
+          description: 'As alterações do incidente foram gravadas com sucesso.',
+        })
+      } else {
+        // CREATE new case
+        const currentCounter = (race?.case_counter || 0) + 1
+        const generatedCode = generateModerationCode({
+          year: champ.expand?.season_id?.expand?.year_id?.year || new Date().getFullYear(),
+          seasonName: champ.expand?.season_id?.name,
+          championshipName: champ.name,
+          championshipShortCode: champ.short_code,
+          stageOrder: stage?.order ?? 1,
+          raceOrder: race?.order ?? 1,
+          caseSequence: currentCounter,
+        })
+
+        const deadlineDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+        const createdCase = await moderationCasesService.create({
+          stage_race_id: raceId,
+          championship_id: champ.id,
+          code: generatedCode,
+          case_number: currentCounter,
+          lap: caseLap.trim() || '1',
+          involved_pilots: involvedRecordIds,
+          guilty_pilot_id: resolvedGuiltyPilotRecordId,
+          opened_by_type: 'comissarios',
+          author_user_id: user?.id,
+          status: targetStatus,
+          infraction_cited: infractionQuery.trim(),
+          penalty_applied: penaltyText,
+          penalty_points: decisionType === 'APLICAR' ? penalty.points : 0,
+          penalty_seconds: decisionType === 'APLICAR' ? penalty.seconds : 0,
+          penalty_positions: decisionType === 'APLICAR' ? penalty.positions : 0,
+          penalty_type: penalty.penaltyType,
+          description: trimmedDesc,
+          deadline: deadlineDate,
+          cancelled: false,
+        })
+
+        try {
+          await stageRacesService.update(raceId, {
+            case_counter: currentCounter,
+          })
+        } catch (err) {
+          console.error('Error updating race case counter:', err)
+        }
+
+        await notificationsService.notifyInvolvedPilots({
+          caseRecord: createdCase,
+          involvedPilotRecords: selectedPilots,
+          stageName: `Etapa ${stage?.order ?? 1}`,
+          trackName: track?.name || 'Pista Oficial',
+          raceName: race?.name || `Corrida ${race?.order ?? 1}`,
+          lap: caseLap.trim() || '1',
+          openedByType: 'comissarios',
+          status: targetStatus,
+          penaltyApplied: penaltyText,
+        })
+
+        toast({
+          title:
+            decisionType === 'APLICAR'
+              ? `Punição Aplicada — ${generatedCode}`
+              : `Marcado para Pós-Corrida — ${generatedCode}`,
+          description:
+            decisionType === 'APLICAR'
+              ? `Infração gravada e punição aplicada. Pilotos citados foram notificados com prazo de 24h.`
+              : `Incidente registrado para julgamento após a etapa. Pilotos envolvidos foram notificados.`,
+        })
       }
-
-      // 3. Send notifications to ALL involved pilots (24h defense, direct case link)
-      await notificationsService.notifyInvolvedPilots({
-        caseRecord: createdCase,
-        involvedPilotRecords: selectedPilots,
-        stageName: `Etapa ${stage?.order ?? 1}`,
-        trackName: track?.name || 'Pista Oficial',
-        raceName: race?.name || `Corrida ${race?.order ?? 1}`,
-        lap: caseLap.trim() || '1',
-        openedByType: 'comissarios',
-        status: targetStatus,
-        penaltyApplied: penaltyText,
-      })
-
-      toast({
-        title:
-          decisionType === 'APLICAR'
-            ? `Punição Aplicada — ${generatedCode}`
-            : `Marcado para Pós-Corrida — ${generatedCode}`,
-        description:
-          decisionType === 'APLICAR'
-            ? `Infração gravada e punição aplicada. Pilotos citados foram notificados com prazo de 24h.`
-            : `Incidente registrado para julgamento após a etapa. Pilotos envolvidos foram notificados.`,
-      })
 
       setIsCaseModalOpen(false)
       const updatedList = await moderationCasesService.listByRace(raceId, false)
@@ -453,22 +587,92 @@ export default function RaceModerationPage() {
     }
   }
 
-  // Cancel action: zero/discard record completely
+  // Quick Action: Resolver / Fechar caso diretamente da linha (marca como Aplicado pós corrida / decidido)
+  const handleQuickResolveCase = async (c: ModerationCase) => {
+    if (isRaceClosed && !isCollaborator) {
+      toast({
+        title: 'Corrida Fechada',
+        description: 'A corrida está fechada para edições.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      await moderationCasesService.update(c.id, {
+        status: 'Aplicado pós corrida',
+        cancelled: false,
+      })
+      toast({
+        title: 'Caso Finalizado',
+        description: `O caso ${c.code || c.id} foi marcado como decidido / aplicado pós-corrida.`,
+      })
+      const updatedList = await moderationCasesService.listByRace(raceId!, false)
+      setModerationCases(updatedList)
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível resolver o caso.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // Quick Action: Negar / Sem ação (lance de corrida — zera punições)
+  const handleQuickDismissCase = async (c: ModerationCase) => {
+    if (isRaceClosed && !isCollaborator) {
+      toast({
+        title: 'Corrida Fechada',
+        description: 'A corrida está fechada para edições.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      await moderationCasesService.update(c.id, {
+        status: 'Nenhuma ação necessária',
+        penalty_applied: 'Lance de corrida analisado — Nenhuma ação necessária',
+        penalty_points: 0,
+        penalty_seconds: 0,
+        penalty_positions: 0,
+        cancelled: false,
+      })
+      toast({
+        title: 'Nenhuma Ação Necessária',
+        description: `O caso ${c.code || c.id} foi classificado como lance de corrida. Punições zeradas.`,
+      })
+      const updatedList = await moderationCasesService.listByRace(raceId!, false)
+      setModerationCases(updatedList)
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar o caso.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // Delete action: zero/cancel record completely (reverts championship penalties)
   const handleConfirmCancelCase = async () => {
     if (!cancelTargetCaseId) return
     try {
+      setIsDeletingCase(true)
       await moderationCasesService.update(cancelTargetCaseId, {
         cancelled: true,
         status: 'Nenhuma ação necessária',
-        penalty_applied: 'Incidente cancelado/zerado pelos comissários',
+        penalty_applied: 'Incidente cancelado/excluído pelos comissários',
         penalty_points: 0,
         penalty_seconds: 0,
         penalty_positions: 0,
       })
 
       toast({
-        title: 'Incidente cancelado',
-        description: 'O registro foi descartado e seus efeitos anulados com sucesso.',
+        title: 'Incidente Excluído',
+        description:
+          'O incidente foi excluído/cancelado com sucesso. Estatísticas e punições foram revertidas.',
       })
       setCancelTargetCaseId(null)
       const updatedList = await moderationCasesService.listByRace(raceId!, false)
@@ -476,10 +680,57 @@ export default function RaceModerationPage() {
     } catch (err) {
       console.error(err)
       toast({
-        title: 'Erro ao cancelar',
+        title: 'Erro ao excluir incidente',
         description: 'Não foi possível cancelar o registro.',
         variant: 'destructive',
       })
+    } finally {
+      setIsDeletingCase(false)
+    }
+  }
+
+  // Toggle Race Lock: Fechar / Reabrir corrida
+  const handleToggleRaceLock = async () => {
+    if (!raceId || !race) return
+
+    // Reopen can only be performed by admin (colaborador)
+    if (race.is_closed && !isCollaborator) {
+      toast({
+        title: 'Acesso Restrito',
+        description: 'Apenas administradores podem reabrir uma corrida que foi fechada.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setIsTogglingRaceLock(true)
+      const newClosedState = !race.is_closed
+
+      const updated = await stageRacesService.update(raceId, {
+        is_closed: newClosedState,
+        closed_at: newClosedState ? new Date().toISOString() : null,
+        closed_by: newClosedState ? user?.id : null,
+      })
+
+      setRace(updated)
+      setIsRaceLockConfirmOpen(false)
+
+      toast({
+        title: newClosedState ? 'Corrida Fechada' : 'Corrida Reaberta',
+        description: newClosedState
+          ? 'A janela de edição de comissários para esta bateria foi encerrada.'
+          : 'A bateria foi reaberta com sucesso pelo administrador.',
+      })
+    } catch (err: any) {
+      console.error(err)
+      toast({
+        title: 'Erro',
+        description: err?.message || 'Falha ao alterar status de fechamento da corrida.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsTogglingRaceLock(false)
     }
   }
 
@@ -548,8 +799,10 @@ export default function RaceModerationPage() {
     'Em análise': 'bg-amber-950/60 text-amber-300 border-amber-600/40',
   }
 
+  const raceDisplayName = race.name || `Bateria ${race.order}`
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto animate-fade-in pb-16">
+    <div className="space-y-6 max-w-6xl mx-auto animate-fade-in pb-20">
       {/* Top back button */}
       <div className="flex items-center justify-between">
         <Button
@@ -563,9 +816,16 @@ export default function RaceModerationPage() {
           Voltar para Central de Provas
         </Button>
 
-        <span className="text-[11px] font-mono text-gray-400">
-          Código Etapa: E{String(stage?.order ?? 1).padStart(2, '0')}-R{race.order}
-        </span>
+        <div className="flex items-center gap-2">
+          {isRaceClosed && (
+            <Badge className="bg-red-950/80 text-red-300 border border-red-500/40 text-[11px] font-racing uppercase tracking-wider flex items-center gap-1">
+              <Lock className="w-3 h-3" /> Corrida Fechada
+            </Badge>
+          )}
+          <span className="text-[11px] font-mono text-gray-400">
+            Código Etapa: E{String(stage?.order ?? 1).padStart(2, '0')}-R{race.order}
+          </span>
+        </div>
       </div>
 
       {/* Header Banner */}
@@ -586,7 +846,7 @@ export default function RaceModerationPage() {
 
           <h1 className="font-racing text-2xl sm:text-3xl font-bold text-white uppercase tracking-wider flex items-center gap-3">
             <span className="w-2.5 h-7 bg-[#E10600] rounded-sm inline-block shadow-[0_0_12px_rgba(225,6,0,0.5)]"></span>
-            Incidentes: {race.name || `Corrida ${race.order}`}
+            Incidentes: {raceDisplayName}
           </h1>
 
           <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400 pt-1">
@@ -618,28 +878,53 @@ export default function RaceModerationPage() {
         </div>
 
         <div className="z-10 flex flex-wrap items-center gap-2">
+          {/* Action button: Novo Incidente */}
           <Button
             type="button"
+            disabled={!canEditRace}
             onClick={handleOpenIncidentModal}
-            className="bg-[#E10600] hover:bg-[#C00500] text-white text-xs font-racing uppercase tracking-wider px-5 py-2.5 shadow-lg shadow-red-950/40 flex items-center gap-2"
+            className="bg-[#E10600] hover:bg-[#C00500] text-white text-xs font-racing uppercase tracking-wider px-5 py-2.5 shadow-lg shadow-red-950/40 flex items-center gap-2 disabled:opacity-50"
+            title={
+              !canEditRace
+                ? 'Corrida fechada. Apenas administradores podem adicionar incidentes.'
+                : 'Adicionar novo incidente'
+            }
           >
             <Plus className="w-4 h-4" />
-            Novo Incidente
+            Adicionar Incidente
           </Button>
         </div>
       </div>
 
-      {/* TABELA DE INCIDENTES DA CORRIDA (Colunas exatas: Volta, Notificado por, Carros envolvidos, Culpado, Infração / Penalidade, Status, Ações) */}
+      {/* Closed Warning Callout */}
+      {isRaceClosed && (
+        <div className="p-4 rounded-xl bg-red-950/30 border border-red-500/30 text-red-200 text-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Lock className="w-4 h-4 text-red-400 shrink-0" />
+            <span>
+              <strong>Corrida fechada.</strong> A janela de edição dos comissários para esta bateria
+              está encerrada. Somente o administrador pode reabri-la ou realizar alterações.
+            </span>
+          </div>
+          {isCollaborator && (
+            <Badge className="bg-red-500/20 text-red-300 border-none text-[10px] uppercase font-racing">
+              Admin Ativo
+            </Badge>
+          )}
+        </div>
+      )}
+
+      {/* TABELA DE INCIDENTES DA CORRIDA (Colunas exatas: Ações, Origem, Volta, Notificado por, Carros envolvidos, Culpado, Infração / Penalidade, Status) */}
       <Card className="p-6 bg-[#161622] border border-white/10 rounded-xl shadow-lg space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
             <Scale className="w-5 h-5 text-[#E10600]" />
             <h2 className="font-racing text-lg font-bold text-white uppercase tracking-wider">
-              Tabela de Incidentes ({moderationCases.length})
+              Incidentes ({moderationCases.length})
             </h2>
           </div>
           <span className="text-[11px] text-gray-400">
-            Julgamento de pista oficial com notificações automáticas e prazo de 24h
+            Ações por linha: ✓ Resolver • ⊖ Sem ação • ✏️ Editar • 💬 Mensagens • 🗑 Excluir
           </span>
         </div>
 
@@ -650,8 +935,8 @@ export default function RaceModerationPage() {
               Nenhum incidente registrado nesta corrida até agora.
             </p>
             <p className="text-gray-500 max-w-md mx-auto">
-              Utilize o botão &quot;Novo Incidente&quot; acima para registrar infrações de pista com
-              autocomplete de pilotos e artigos de regulamento.
+              Utilize o botão &quot;Adicionar Incidente&quot; acima para registrar infrações de
+              pista com autocomplete de pilotos inscritos e artigos do regulamento.
             </p>
           </div>
         ) : (
@@ -659,14 +944,14 @@ export default function RaceModerationPage() {
             <table className="w-full text-left text-xs text-gray-300">
               <thead>
                 <tr className="border-b border-white/10 bg-[#14141F] text-[10px] font-racing text-gray-400 uppercase tracking-wider">
+                  <th className="py-3 px-3 text-center">Ações</th>
+                  <th className="py-3 px-3 text-center">Origem</th>
                   <th className="py-3 px-3 text-center">Volta</th>
-                  <th className="py-3 px-3">Código</th>
                   <th className="py-3 px-3">Notificado por</th>
                   <th className="py-3 px-3">Carros envolvidos</th>
                   <th className="py-3 px-3">Culpado</th>
                   <th className="py-3 px-3">Infração / Penalidade</th>
                   <th className="py-3 px-3 text-center">Status</th>
-                  <th className="py-3 px-3 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -681,12 +966,13 @@ export default function RaceModerationPage() {
                   const authorPilot =
                     c.expand?.author_pilot_id || allPilots.find((p) => p.id === c.author_pilot_id)
 
-                  const notifByText =
-                    c.opened_by_type === 'comissarios'
-                      ? 'Comissários de Prova'
-                      : authorPilot
-                        ? `#${authorPilot.number ?? ''} - ${authorPilot.name}`
-                        : c.expand?.author_user_id?.name || 'Piloto'
+                  const isProtest = c.opened_by_type === 'protesto_piloto'
+
+                  const notifByText = !isProtest
+                    ? 'Comissários'
+                    : authorPilot
+                      ? getPilotDisplayLabel(authorPilot)
+                      : c.expand?.author_user_id?.name || 'Piloto'
 
                   return (
                     <tr
@@ -694,47 +980,121 @@ export default function RaceModerationPage() {
                       className="hover:bg-white/5 transition-colors cursor-pointer"
                       onClick={() => navigate(`/moderacao/caso/${c.id}`)}
                     >
+                      {/* Ações por linha: ✓ (resolver), ⊖ (sem ação), ✏️ (editar), 💬 (thread), 🗑 (excluir) */}
+                      <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          {/* ✓ Resolver / Fechar */}
+                          <button
+                            type="button"
+                            disabled={!canEditRace}
+                            onClick={() => handleQuickResolveCase(c)}
+                            className="p-1 rounded hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                            title="Resolver / Fechar caso (marcar como decidido)"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* ⊖ Negar / Sem ação */}
+                          <button
+                            type="button"
+                            disabled={!canEditRace}
+                            onClick={() => handleQuickDismissCase(c)}
+                            className="p-1 rounded hover:bg-gray-500/20 text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                            title="Negar / Sem ação necessária (lance de corrida, zera punição)"
+                          >
+                            <MinusCircle className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* ✏️ Editar */}
+                          <button
+                            type="button"
+                            disabled={!canEditRace}
+                            onClick={() => handleEditCase(c)}
+                            className="p-1 rounded hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                            title="Editar dados do incidente"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* 💬 Comentários / Thread */}
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/moderacao/caso/${c.id}`)}
+                            className="p-1 rounded hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 transition-colors"
+                            title="Abrir thread / comentários do caso"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* 🗑 Excluir / Cancelar */}
+                          <button
+                            type="button"
+                            disabled={!canEditRace}
+                            onClick={() => setCancelTargetCaseId(c.id)}
+                            className="p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                            title="Excluir incidente (reverte punição e desconsidera estatísticas)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Coluna Origem: Protesto 🔨 ou Notificação */}
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                        {isProtest ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-[#E10600]/15 text-[#ff6b6b] border border-[#E10600]/30 font-racing uppercase tracking-wider">
+                            <span>Protesto</span>
+                            <span title="Protesto de Piloto">🔨</span>
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-white/5 border border-white/10 text-gray-300 font-racing uppercase tracking-wider">
+                            Notificação
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Volta */}
                       <td className="py-3.5 px-3 text-center font-racing font-bold text-white text-sm">
                         {c.lap}
                       </td>
 
-                      <td className="py-3.5 px-3 font-mono text-[11px] text-[#90e0ef]">
-                        {c.code || `CASO-#${c.id.slice(0, 6)}`}
-                      </td>
-
+                      {/* Notificado por */}
                       <td className="py-3.5 px-3">
-                        <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-white/5 border border-white/10 text-gray-200">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#1F1F30] border border-white/10 text-gray-200">
                           {notifByText}
                         </span>
                       </td>
 
+                      {/* Carros envolvidos: Badges azuis com formato "#número - Nome" */}
                       <td className="py-3.5 px-3">
-                        <div className="flex flex-col gap-1 max-w-[200px]">
+                        <div className="flex flex-col gap-1 max-w-[220px]">
                           {involvedList.length === 0 ? (
                             <span className="text-gray-500 text-[11px]">-</span>
                           ) : (
                             involvedList.map((p) => (
                               <span
                                 key={p.id}
-                                className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#0d2137] text-[#90e0ef] border border-[#0077b6]/30 truncate"
+                                className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#0d2137] text-[#90e0ef] border border-[#0077b6]/40 truncate"
                               >
-                                #{p.number ?? '•'} - {p.name}
+                                {getPilotDisplayLabel(p)}
                               </span>
                             ))
                           )}
                         </div>
                       </td>
 
+                      {/* Culpado: Badge vermelha */}
                       <td className="py-3.5 px-3">
                         {guiltyPilot ? (
                           <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#e63946]/20 text-[#ff758f] border border-[#e63946]/50">
-                            #{guiltyPilot.number ?? '•'} - {guiltyPilot.name}
+                            {getPilotDisplayLabel(guiltyPilot)}
                           </span>
                         ) : (
-                          <span className="text-gray-400 italic text-[11px]">Sem Culpado</span>
+                          <span className="text-gray-400 italic text-[11px]">Sem culpado</span>
                         )}
                       </td>
 
+                      {/* Infração / Penalidade */}
                       <td className="py-3.5 px-3 text-gray-200 font-medium text-xs max-w-xs">
                         <div className="leading-snug">{c.infraction_cited || 'Em julgamento'}</div>
                         {c.penalty_applied && (
@@ -742,8 +1102,14 @@ export default function RaceModerationPage() {
                             {c.penalty_applied}
                           </div>
                         )}
+                        {c.description && (
+                          <div className="text-[10px] text-gray-400 italic mt-0.5 truncate">
+                            Obs: {c.description}
+                          </div>
+                        )}
                       </td>
 
+                      {/* Status */}
                       <td className="py-3.5 px-3 text-center">
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-[11px] font-bold border capitalize whitespace-nowrap ${
@@ -752,34 +1118,6 @@ export default function RaceModerationPage() {
                         >
                           {c.status}
                         </span>
-                      </td>
-
-                      <td className="py-3.5 px-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/moderacao/caso/${c.id}`)}
-                            className="text-gray-300 hover:text-white h-7 px-2 text-xs"
-                            title="Ver detalhes do caso"
-                          >
-                            Ver Caso <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-                          </Button>
-
-                          {isCollaborator && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setCancelTargetCaseId(c.id)}
-                              className="text-gray-500 hover:text-red-400 h-7 w-7 p-0"
-                              title="Cancelar incidente (Ação C)"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
-                        </div>
                       </td>
                     </tr>
                   )
@@ -909,53 +1247,111 @@ export default function RaceModerationPage() {
         </form>
       </Card>
 
+      {/* RODAPÉ DA PÁGINA: FECHAR / REABRIR BATERIA */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-[#14141F] border border-white/10 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div
+            className={`w-10 h-10 rounded-xl flex items-center justify-center font-racing text-lg font-bold ${
+              isRaceClosed
+                ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+            }`}
+          >
+            {isRaceClosed ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+          </div>
+          <div>
+            <h3 className="font-racing text-sm font-bold text-white uppercase tracking-wider">
+              Status da Bateria: {isRaceClosed ? 'Fechada' : 'Aberta para Julgamento'}
+            </h3>
+            <p className="text-[11px] text-gray-400">
+              {isRaceClosed
+                ? 'A janela de edição dos comissários foi encerrada. Apenas administrador pode reabrir.'
+                : 'Comissários podem registrar e editar incidentes até o fechamento ou início da próxima etapa.'}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          {isRaceClosed ? (
+            <Button
+              type="button"
+              disabled={!isCollaborator}
+              onClick={() => {
+                setRaceLockAction('reopen')
+                setIsRaceLockConfirmOpen(true)
+              }}
+              className="bg-[#0f4c81] hover:bg-[#1a5f9e] text-white text-xs font-racing uppercase tracking-wider px-5 py-2.5 flex items-center gap-2 disabled:opacity-40 shadow-lg"
+              title={
+                !isCollaborator
+                  ? 'Apenas administradores podem reabrir uma bateria'
+                  : 'Reabrir bateria para edição'
+              }
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reabrir {raceDisplayName.toUpperCase()}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={() => {
+                setRaceLockAction('close')
+                setIsRaceLockConfirmOpen(true)
+              }}
+              className="bg-[#2B2D42] hover:bg-[#3D405B] text-white text-xs font-racing uppercase tracking-wider px-5 py-2.5 flex items-center gap-2 border border-white/10 shadow-lg"
+            >
+              <Lock className="w-4 h-4 text-red-400" />
+              Fechar {raceDisplayName.toUpperCase()}
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* =========================================================================
-          MODAL: NOVO INCIDENTE (CAMPOS EXATOS DO RELATO DO USUÁRIO)
-          - VOLTA: caixa de texto livre
-          - PILOTOS ENVOLVIDOS: autocomplete sobre lista de inscritos, sem acento / case-insensitive, multi-seleção
-          - CULPADO: dropdown simples com APENAS os nomes inseridos em Pilotos envolvidos, + "Sem Culpado"
-          - INFRAÇÃO: autocomplete que reflete EXATAMENTE cada item do regulamento (sem acentos)
-          - DESCRIÇÃO: breve descrição
-          - DECISÃO FINAL: 3 ações (a) APLICAR, (b) PÓS CORRIDA, (c) CANCELAR
+          MODAL: ADICIONAR / EDITAR INCIDENTE
+          - VOLTA: texto livre
+          - NOTIFICADO POR: comissários (ou piloto original ao editar)
+          - PILOTOS ENVOLVIDOS: autocomplete inteligente + chips "#num - Nome (id)"
+          - CULPADO: dropdown simples ("Sem culpado" + nomes selecionados)
+          - INFRAÇÃO: autocomplete conforme regulamento
+          - OBSERVAÇÕES: campo com contador "Max.: 0 / 120"
+          - BOTÕES: CANCELAR e ADICIONAR (ou SALVAR ALTERAÇÕES)
          ========================================================================= */}
       <Dialog open={isCaseModalOpen} onOpenChange={setIsCaseModalOpen}>
         <DialogContent className="max-w-2xl bg-[#161622] border border-white/15 text-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-racing text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2 border-b border-white/10 pb-3">
               <Gavel className="w-5 h-5 text-[#E10600]" />
-              Abertura de Incidente da Corrida
+              {editingCaseId ? 'Editar Incidente' : 'Adicionar Incidente'}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5 py-2 text-xs">
-            {/* 1. CAMPO VOLTA: Caixa de texto livre */}
+          <div className="space-y-4 py-2 text-xs">
+            {/* 1. Volta (texto livre) */}
             <div className="space-y-1.5">
               <Label htmlFor="lap-field" className="text-xs font-semibold text-gray-200">
-                Volta do Incidente (Texto Livre)
+                Volta
               </Label>
               <Input
                 id="lap-field"
                 type="text"
                 value={caseLap}
                 onChange={(e) => setCaseLap(e.target.value)}
-                placeholder="Ex: Volta 14, Curva do Lago, Reta principal"
+                placeholder="Ex: 1, 14, Curva 1"
                 className="bg-[#1F1F30] border-white/10 text-white text-xs h-10 font-medium focus-visible:ring-[#E10600]"
                 required
               />
             </div>
 
-            {/* 2. CAMPO PILOTOS ENVOLVIDOS: Autocomplete multi-seleção sobre inscritos */}
+            {/* 2. Pilotos Envolvidos: chips com formato "#número - Nome" + Autocomplete */}
             <div className="space-y-2 relative">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold text-gray-200">
-                  Pilotos Envolvidos ({selectedPilots.length} selecionado(s))
+                  Piloto(s) envolvido(s) ({selectedPilots.length} selecionado(s))
                 </Label>
-                <span className="text-[11px] text-gray-400">
-                  Busca em tempo real ignorando acentos (ex: &quot;jos&quot; acha &quot;José&quot;)
-                </span>
+                <span className="text-[11px] text-gray-400">Filtra inscritos no campeonato</span>
               </div>
 
-              {/* Chips of selected pilots */}
+              {/* Chips removíveis com formato exato: "#número - Nome" */}
               {selectedPilots.length > 0 && (
                 <div className="flex flex-wrap gap-2 p-2.5 rounded-xl bg-[#14141F] border border-white/10">
                   {selectedPilots.map((p) => (
@@ -963,10 +1359,11 @@ export default function RaceModerationPage() {
                       key={p.id}
                       className="px-3 py-1 rounded-full text-xs font-bold bg-[#0d2137] text-[#90e0ef] border border-[#0077b6]/40 flex items-center gap-1.5"
                     >
-                      <span>#{p.number ?? '•'}</span>
-                      <span>{p.name}</span>
-                      {p.team && (
-                        <span className="text-[10px] text-gray-400 font-normal">({p.team})</span>
+                      <span>{getPilotDisplayLabel(p)}</span>
+                      {p.iracing_id && (
+                        <span className="text-[10px] text-gray-400 font-mono">
+                          ({p.iracing_id})
+                        </span>
                       )}
                       <button
                         type="button"
@@ -986,7 +1383,7 @@ export default function RaceModerationPage() {
                 <Input
                   ref={pilotInputRef}
                   type="text"
-                  placeholder="Digite o nome, número ou equipe do piloto para buscar..."
+                  placeholder="Digite nome, número ou equipe do piloto..."
                   value={pilotSearchQuery}
                   onChange={(e) => {
                     setPilotSearchQuery(e.target.value)
@@ -1030,6 +1427,11 @@ export default function RaceModerationPage() {
                           </span>
                           <span className="font-semibold text-gray-200">{p.name}</span>
                           {p.team && <span className="text-[11px] text-gray-400">({p.team})</span>}
+                          {p.iracing_id && (
+                            <span className="text-[10px] text-gray-500 font-mono">
+                              ID: {p.iracing_id}
+                            </span>
+                          )}
                         </div>
                         <span className="text-[10px] font-mono text-[#90e0ef] bg-[#0d2137] px-2 py-0.5 rounded">
                           Adicionar
@@ -1041,51 +1443,38 @@ export default function RaceModerationPage() {
               )}
             </div>
 
-            {/* 3. CAMPO CULPADO: Dropdown simples APENAS com nomes já inseridos em Envolvidos + Sem Culpado */}
+            {/* 3. Culpado: dropdown "Sem culpado" + apenas pilotos selecionados */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-200">
-                Culpado / Responsável pelo Incidente
-              </Label>
+              <Label className="text-xs font-semibold text-gray-200">Culpado</Label>
               <Select value={guiltyPilotId} onValueChange={setGuiltyPilotId}>
                 <SelectTrigger className="bg-[#1F1F30] border-white/10 text-white text-xs h-10">
                   <SelectValue placeholder="Selecione o culpado" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1B1B2A] border-white/15 text-white">
                   <SelectItem value="SEM_CULPADO">
-                    <span className="font-semibold text-gray-300">
-                      Sem Culpado (Lance de Corrida)
-                    </span>
+                    <span className="font-semibold text-gray-300">Sem culpado</span>
                   </SelectItem>
                   {selectedPilots.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      #{p.number ?? '•'} - {p.name} {p.team ? `(${p.team})` : ''}
+                      {getPilotDisplayLabel(p)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {selectedPilots.length === 0 && (
-                <span className="text-[11px] text-gray-400 italic block">
-                  Adicione pilotos no campo acima para habilitar atribuição de culpa.
-                </span>
-              )}
             </div>
 
-            {/* 4. CAMPO INFRAÇÃO: Autocomplete que reflete EXATAMENTE o regulamento do campeonato */}
+            {/* 4. Infração: autocomplete do regulamento */}
             <div className="space-y-2 relative">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-gray-200">
-                  Infração / Item do Regulamento
-                </Label>
-                <span className="text-[11px] text-gray-400">
-                  Filtro por texto e artigos oficiais cadastrados
-                </span>
+                <Label className="text-xs font-semibold text-gray-200">Infração</Label>
+                <span className="text-[11px] text-gray-400">Itens oficiais do regulamento</span>
               </div>
 
               <div className="relative">
                 <Input
                   ref={infractionInputRef}
                   type="text"
-                  placeholder="Digite para autocompletar conforme o regulamento..."
+                  placeholder="Selecione ou digite o artigo da infração..."
                   value={infractionQuery}
                   onChange={(e) => {
                     setInfractionQuery(e.target.value)
@@ -1109,12 +1498,11 @@ export default function RaceModerationPage() {
                 )}
               </div>
 
-              {/* Dropdown list for Infractions */}
               {isInfractionDropdownOpen && (
                 <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl bg-[#1B1B2A] border border-white/15 shadow-2xl divide-y divide-white/5">
                   {filteredInfractions.length === 0 ? (
                     <div className="p-3 text-center text-gray-400 text-xs">
-                      Nenhum item do regulamento corresponde à busca.
+                      Nenhum item do regulamento encontrado.
                     </div>
                   ) : (
                     filteredInfractions.map((rule, idx) => (
@@ -1134,10 +1522,9 @@ export default function RaceModerationPage() {
                 </div>
               )}
 
-              {/* Automatic penalty preview badge */}
               {infractionQuery && (
                 <div className="p-2.5 rounded-lg bg-[#0d2137]/80 border border-[#0077b6]/30 flex items-center justify-between text-xs">
-                  <span className="text-gray-300">Punição prevista no item:</span>
+                  <span className="text-gray-300">Punição prevista:</span>
                   <span className="font-bold text-[#90e0ef] font-mono">
                     {parsedPenalty.displayText}
                   </span>
@@ -1145,36 +1532,33 @@ export default function RaceModerationPage() {
               )}
             </div>
 
-            {/* 5. CAMPO DESCRIÇÃO: Breve descrição da análise */}
+            {/* 5. Observações com contador: "Max.: 0 / 120" */}
             <div className="space-y-1.5">
-              <Label htmlFor="desc-field" className="text-xs font-semibold text-gray-200">
-                Descrição da Análise Comissária
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="obs-field" className="text-xs font-semibold text-gray-200">
+                  Observações
+                </Label>
+                <span
+                  className={`text-[11px] font-mono ${
+                    caseDescription.length > 115 ? 'text-amber-400' : 'text-gray-400'
+                  }`}
+                >
+                  Max.: {caseDescription.length} / 120
+                </span>
+              </div>
               <Textarea
-                id="desc-field"
-                rows={3}
-                placeholder="Breve descrição dos fatos apurados em pista ou vídeo..."
+                id="obs-field"
+                rows={2}
+                maxLength={120}
+                placeholder="Observações adicionais dos comissários..."
                 value={caseDescription}
-                onChange={(e) => setCaseDescription(e.target.value)}
+                onChange={(e) => setCaseDescription(e.target.value.slice(0, 120))}
                 className="bg-[#1F1F30] border-white/10 text-white text-xs resize-y focus-visible:ring-[#E10600]"
               />
             </div>
-
-            {/* Notification reminder */}
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2.5">
-              <Clock className="w-4 h-4 shrink-0 text-amber-400" />
-              <span>
-                Cada piloto citado receberá notificação no sino do app com dados da etapa, pista e
-                volta, tendo prazo de 24 horas para defesa.
-              </span>
-            </div>
           </div>
 
-          {/* 6. DECISÃO FINAL: 3 Ações Exatas
-              a) APLICAR: aplica punição automática
-              b) PÓS CORRIDA: marca para análise pós-etapa
-              c) CANCELAR: zera/descarta
-          */}
+          {/* Botões do rodapé: CANCELAR e ADICIONAR (ou Pós Corrida / Aplicar) */}
           <DialogFooter className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-white/10 pt-4">
             <Button
               type="button"
@@ -1183,11 +1567,10 @@ export default function RaceModerationPage() {
               onClick={() => setIsCaseModalOpen(false)}
               className="text-xs bg-transparent border-white/20 text-gray-300 hover:bg-white/5 order-3 sm:order-1"
             >
-              Fechar
+              CANCELAR
             </Button>
 
             <div className="flex flex-wrap items-center gap-2 justify-end order-1 sm:order-2">
-              {/* Action b) PÓS CORRIDA */}
               <Button
                 type="button"
                 variant="outline"
@@ -1198,33 +1581,33 @@ export default function RaceModerationPage() {
                 Pós Corrida
               </Button>
 
-              {/* Action a) APLICAR */}
               <Button
                 type="button"
                 disabled={isSavingCase}
                 onClick={() => handleSaveDecision('APLICAR')}
                 className="text-xs bg-[#E10600] hover:bg-[#C00500] text-white font-racing uppercase tracking-wider px-5 h-9 shadow-lg shadow-red-950/40"
               >
-                {isSavingCase ? 'Gravando...' : 'Aplicar Punição'}
+                {isSavingCase ? 'Salvando...' : editingCaseId ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR *'}
               </Button>
             </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* CONFIRMAÇÃO DE CANCELAMENTO / AÇÃO C: CANCELAR */}
+      {/* CONFIRMAÇÃO DE EXCLUSÃO / CANCELAMENTO DE INCIDENTE */}
       <Dialog open={Boolean(cancelTargetCaseId)} onOpenChange={() => setCancelTargetCaseId(null)}>
         <DialogContent className="max-w-md bg-[#161622] border border-white/15 text-white">
           <DialogHeader>
             <DialogTitle className="font-racing text-base font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-red-500" />
-              Confirmar Cancelamento do Incidente
+              Confirmar Exclusão do Incidente
             </DialogTitle>
           </DialogHeader>
 
           <p className="text-xs text-gray-300 leading-relaxed py-2">
-            Tem certeza que deseja cancelar e descartar este incidente por completo? Essa ação zera
-            o caso no sistema e remove quaisquer penalidades previamente vinculadas.
+            Tem certeza que deseja excluir/cancelar este incidente? Caso excluído, ele não contará
+            para estatísticas e reverterá qualquer punição aplicada na classificação de pilotos e
+            equipes.
           </p>
 
           <DialogFooter className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
@@ -1232,17 +1615,72 @@ export default function RaceModerationPage() {
               type="button"
               variant="outline"
               size="sm"
+              disabled={isDeletingCase}
               onClick={() => setCancelTargetCaseId(null)}
               className="text-xs bg-transparent border-white/15 text-gray-300"
             >
-              Manter Incidente
+              Voltar
             </Button>
             <Button
               type="button"
+              disabled={isDeletingCase}
               onClick={handleConfirmCancelCase}
               className="bg-red-600 hover:bg-red-700 text-white text-xs font-racing uppercase tracking-wider px-4"
             >
-              Sim, Cancelar Incidente
+              {isDeletingCase ? 'Excluindo...' : 'Sim, Excluir Incidente'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CONFIRMAÇÃO DE FECHAMENTO / REABERTURA DA BATERIA */}
+      <Dialog open={isRaceLockConfirmOpen} onOpenChange={setIsRaceLockConfirmOpen}>
+        <DialogContent className="max-w-md bg-[#161622] border border-white/15 text-white">
+          <DialogHeader>
+            <DialogTitle className="font-racing text-base font-bold uppercase tracking-wider flex items-center gap-2 text-white">
+              {raceLockAction === 'close' ? (
+                <>
+                  <Lock className="w-5 h-5 text-amber-400" /> Fechar Bateria
+                </>
+              ) : (
+                <>
+                  <Unlock className="w-5 h-5 text-emerald-400" /> Reabrir Bateria
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          <p className="text-xs text-gray-300 leading-relaxed py-2">
+            {raceLockAction === 'close'
+              ? `Deseja realmente fechar a ${raceDisplayName}? Isso encerra a janela de edição dos comissários. Apenas administradores poderão reabrir ou alterar registros posteriormente.`
+              : `Deseja reabrir a ${raceDisplayName}? A janela de edição será novamente liberada para a equipe de moderação.`}
+          </p>
+
+          <DialogFooter className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsRaceLockConfirmOpen(false)}
+              className="text-xs bg-transparent border-white/15 text-gray-300"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={isTogglingRaceLock}
+              onClick={handleToggleRaceLock}
+              className={`text-xs font-racing uppercase tracking-wider px-4 ${
+                raceLockAction === 'close'
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
+            >
+              {isTogglingRaceLock
+                ? 'Processando...'
+                : raceLockAction === 'close'
+                  ? `Sim, Fechar ${raceDisplayName.toUpperCase()}`
+                  : `Sim, Reabrir ${raceDisplayName.toUpperCase()}`}
             </Button>
           </DialogFooter>
         </DialogContent>

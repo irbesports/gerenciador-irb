@@ -112,7 +112,11 @@ export interface StageRace extends RecordModel {
   inverted_positions?: number
   name?: string
   case_counter?: number
+  is_closed?: boolean
+  closed_at?: string
+  closed_by?: string
   expand?: {
+    closed_by?: User
     stage_id?: ChampionshipStage & {
       expand?: {
         track?: Track

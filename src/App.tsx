@@ -37,6 +37,8 @@ import ScoringSystemPage from '@/pages/ScoringSystemPage'
 import RaceModerationPage from '@/pages/RaceModerationPage'
 import ModerationCaseDetail from '@/pages/ModerationCaseDetail'
 import StewardsHubPage from '@/pages/StewardsHubPage'
+import PilotNewProtestPage from '@/pages/PilotNewProtestPage'
+import MyProtestsPage from '@/pages/MyProtestsPage'
 
 import ManufacturersList from '@/pages/ManufacturersList'
 import CarsList from '@/pages/CarsList'
@@ -147,6 +149,9 @@ export default function App() {
             />
             <Route path="/pontuacao" element={<ScoringSystemPage />} />
 
+            {/* Protestos Desportivos do Piloto */}
+            <Route path="/protestar" element={<PilotNewProtestPage />} />
+            <Route path="/meus-protestos" element={<MyProtestsPage />} />
             {/* Reference Data */}
             <Route path="/montadoras" element={<ManufacturersList />} />
             <Route path="/carros" element={<CarsList />} />

@@ -55,11 +55,12 @@ export default function Layout() {
       ],
     },
     {
-      title: 'Gestão',
+      title: 'Gestão Desportiva',
       items: [
         { label: 'Central de Provas', path: '/moderacao/central-de-provas', icon: ShieldCheck },
         { label: 'Casos & Protestos', path: '/moderacao', icon: AlertTriangle },
-        { label: 'Infrações', path: '/infracoes', icon: Scale },
+        { label: 'Meus Protestos', path: '/meus-protestos', icon: Scale },
+        { label: 'Infrações', path: '/infracoes', icon: ShieldCheck },
         { label: 'Pontuação', path: '/pontuacao', icon: Award },
       ],
     },

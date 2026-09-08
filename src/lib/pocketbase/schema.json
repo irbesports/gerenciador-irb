@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T15:47:49.107Z",
+  "generatedAt": "2026-09-08T16:00:12.339Z",
   "collections": [
     {
       "name": "users",
@@ -1264,6 +1264,25 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "is_closed",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "closed_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "closed_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": ["CREATE INDEX idx_stage_races_stage ON stage_races (stage_id)"]
