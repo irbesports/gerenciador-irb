@@ -15,6 +15,11 @@ import type {
   SupportMessage,
   User,
   ChampionshipBattery,
+  ChampionshipStage,
+  StageRace,
+  StageRaceComment,
+  ScoringPreset,
+  ChampionshipPilot,
 } from '@/types'
 
 // Helper to get file URL
@@ -65,6 +70,125 @@ export const seasonsService = {
   },
   delete: async (id: string) => {
     return await pb.collection('seasons').delete(id)
+  },
+}
+
+// Championship Stages
+export const championshipStagesService = {
+  listByChampionship: async (championshipId: string) => {
+    return await pb.collection('championship_stages').getFullList<ChampionshipStage>({
+      filter: `championship_id = "${championshipId}"`,
+      sort: 'order',
+      expand: 'track',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('championship_stages').getOne<ChampionshipStage>(id, {
+      expand: 'track,championship_id',
+    })
+  },
+  create: async (data: Partial<ChampionshipStage>) => {
+    return await pb.collection('championship_stages').create<ChampionshipStage>(data)
+  },
+  update: async (id: string, data: Partial<ChampionshipStage>) => {
+    return await pb.collection('championship_stages').update<ChampionshipStage>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('championship_stages').delete(id)
+  },
+}
+
+// Stage Races (races inside a stage)
+export const stageRacesService = {
+  listByStage: async (stageId: string) => {
+    return await pb.collection('stage_races').getFullList<StageRace>({
+      filter: `stage_id = "${stageId}"`,
+      sort: 'order',
+      expand: 'stage_id,stage_id.track,stage_id.championship_id',
+    })
+  },
+  listByChampionship: async (championshipId: string) => {
+    return await pb.collection('stage_races').getFullList<StageRace>({
+      filter: `stage_id.championship_id = "${championshipId}"`,
+      sort: 'stage_id.order,order',
+      expand: 'stage_id,stage_id.track',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('stage_races').getOne<StageRace>(id, {
+      expand: 'stage_id,stage_id.track,stage_id.championship_id',
+    })
+  },
+  create: async (data: Partial<StageRace>) => {
+    return await pb.collection('stage_races').create<StageRace>(data)
+  },
+  update: async (id: string, data: Partial<StageRace>) => {
+    return await pb.collection('stage_races').update<StageRace>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('stage_races').delete(id)
+  },
+}
+
+// Stage Race Comments
+export const stageRaceCommentsService = {
+  listByRace: async (raceId: string) => {
+    return await pb.collection('stage_race_comments').getFullList<StageRaceComment>({
+      filter: `race_id = "${raceId}"`,
+      sort: 'created',
+      expand: 'user_id',
+    })
+  },
+  create: async (raceId: string, message: string, userId: string) => {
+    return await pb.collection('stage_race_comments').create<StageRaceComment>({
+      race_id: raceId,
+      user_id: userId,
+      message,
+    })
+  },
+  delete: async (id: string) => {
+    return await pb.collection('stage_race_comments').delete(id)
+  },
+}
+
+// Scoring Presets Library
+export const scoringPresetsService = {
+  list: async () => {
+    return await pb.collection('scoring_presets').getFullList<ScoringPreset>({
+      sort: 'name',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('scoring_presets').getOne<ScoringPreset>(id)
+  },
+  create: async (data: Partial<ScoringPreset>) => {
+    return await pb.collection('scoring_presets').create<ScoringPreset>(data)
+  },
+  update: async (id: string, data: Partial<ScoringPreset>) => {
+    return await pb.collection('scoring_presets').update<ScoringPreset>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('scoring_presets').delete(id)
+  },
+}
+
+// Championship Pilots (registrations)
+export const championshipPilotsService = {
+  listByChampionship: async (championshipId: string) => {
+    return await pb.collection('championship_pilots').getFullList<ChampionshipPilot>({
+      filter: `championship_id = "${championshipId}"`,
+      sort: 'number',
+      expand: 'pilot',
+    })
+  },
+  create: async (data: Partial<ChampionshipPilot>) => {
+    return await pb.collection('championship_pilots').create<ChampionshipPilot>(data)
+  },
+  update: async (id: string, data: Partial<ChampionshipPilot>) => {
+    return await pb.collection('championship_pilots').update<ChampionshipPilot>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('championship_pilots').delete(id)
   },
 }
 

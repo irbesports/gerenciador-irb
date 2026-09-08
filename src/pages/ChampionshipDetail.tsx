@@ -19,8 +19,21 @@ import {
   pilotsService,
   scoringRulesService,
   infractionsService,
+  championshipStagesService,
+  stageRacesService,
+  championshipPilotsService,
 } from '@/services/api'
-import type { Championship, Pilot, ScoringRule, Infraction } from '@/types'
+import type {
+  Championship,
+  Pilot,
+  ScoringRule,
+  Infraction,
+  ChampionshipStage,
+  StageRace,
+  ChampionshipPilot,
+  SingleScoringConfig,
+  MultiClassScoringConfig,
+} from '@/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -38,22 +51,37 @@ export default function ChampionshipDetail() {
   const [championship, setChampionship] = useState<Championship | null>(null)
   const [pilots, setPilots] = useState<Pilot[]>([])
   const [scoringRules, setScoringRules] = useState<ScoringRule[]>([])
+  const [stages, setStages] = useState<ChampionshipStage[]>([])
+  const [stageRaces, setStageRaces] = useState<StageRace[]>([])
+  const [champPilots, setChampPilots] = useState<ChampionshipPilot[]>([])
   const [infractions, setInfractions] = useState<Infraction[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = async () => {
     if (!id) return
     try {
-      const [champ, pList, rules, infs] = await Promise.all([
+      const [champ, pList, rules, infs, stList, cpList] = await Promise.all([
         championshipsService.getOne(id),
         pilotsService.list(),
         scoringRulesService.listByChampionship(id),
         infractionsService.list(),
+        championshipStagesService.listByChampionship(id),
+        championshipPilotsService.listByChampionship(id),
       ])
       setChampionship(champ)
       setPilots(pList)
       setScoringRules(rules)
       setInfractions(infs.filter((inf) => inf.championship_id === id))
+      setStages(stList)
+      setChampPilots(cpList)
+
+      // Load all races for all stages
+      const allRaces: StageRace[] = []
+      for (const st of stList) {
+        const races = await stageRacesService.listByStage(st.id)
+        allRaces.push(...races)
+      }
+      setStageRaces(allRaces)
     } catch (err) {
       console.error(err)
       toast({
@@ -95,56 +123,97 @@ export default function ChampionshipDetail() {
     }
   }
 
-  // Standings calculation simulation based on scoring rules
-  const standings = pilots
-    .map((pilot, idx) => {
-      // Generate realistic accumulated points from rule table
-      const rule = scoringRules[idx]
-      const points = rule ? rule.points * 3 + (idx === 0 ? 5 : 0) : Math.max(1, 40 - idx * 6)
-      return {
-        pilot,
-        position: idx + 1,
-        points,
-        wins: idx === 0 ? 2 : idx === 1 ? 1 : 0,
-        podiums: idx < 3 ? 3 : 1,
-      }
-    })
-    .sort((a, b) => b.points - a.points)
+  // Calculation of standings with drop scores (descartes) and points per race
+  const standings = React.useMemo(() => {
+    // Determine participant list: championship_pilots or general pilots
+    const effectiveParticipants =
+      champPilots.length > 0
+        ? champPilots.map((cp) => ({
+            id: cp.id,
+            name: cp.name || cp.expand?.pilot?.name || 'Piloto',
+            team_name: cp.team || cp.expand?.pilot?.team_name || 'Equipe',
+            number: cp.number ?? cp.expand?.pilot?.number,
+            avatar: cp.expand?.pilot?.avatar,
+            pilotRecordId: cp.pilot,
+            car_class: cp.car_class,
+          }))
+        : pilots.map((p) => ({
+            id: p.id,
+            name: p.name,
+            team_name: p.team_name,
+            number: p.number,
+            avatar: p.avatar,
+            pilotRecordId: p.id,
+            car_class: undefined,
+          }))
 
-  const sampleRaces = [
-    {
-      round: 1,
-      name: 'GP de Interlagos - Etapa de Abertura',
-      track: 'Interlagos (SP)',
-      date: '15/06/2025',
-      status: 'concluida',
-      winner: 'Carlos Silva',
-    },
-    {
-      round: 2,
-      name: 'GP de Curitiba - Desafio das Curvas',
-      track: 'Curitiba (PR)',
-      date: '12/07/2025',
-      status: 'concluida',
-      winner: 'Ana Souza',
-    },
-    {
-      round: 3,
-      name: 'Grande Prêmio de Silverstone - Clássico',
-      track: 'Silverstone (UK)',
-      date: '24/08/2025',
-      status: 'proxima',
-      winner: '-',
-    },
-    {
-      round: 4,
-      name: 'Super Final de Velocidade',
-      track: 'Interlagos (SP)',
-      date: '28/09/2025',
-      status: 'proxima',
-      winner: '-',
-    },
-  ]
+    // Completed or active races
+    const completedStages = stages.filter((s) => s.status === 'Finalizada')
+    const completedStagesCount = Math.max(1, completedStages.length)
+    const dropScoresCount = championship?.drop_scores || 0
+
+    // Extract scoring rules map
+    let pointsTable: { [position: number]: number } = {}
+    if (championship?.stages_scoring) {
+      if (
+        !Array.isArray(championship.stages_scoring) &&
+        (championship.stages_scoring as SingleScoringConfig).rules
+      ) {
+        ;(championship.stages_scoring as SingleScoringConfig).rules.forEach((r) => {
+          pointsTable[r.position] = r.points
+        })
+      } else if (
+        Array.isArray(championship.stages_scoring) &&
+        championship.stages_scoring.length > 0
+      ) {
+        // Multi-class default rules from first class
+        championship.stages_scoring[0].rules.forEach((r) => {
+          pointsTable[r.position] = r.points
+        })
+      }
+    }
+    if (Object.keys(pointsTable).length === 0 && scoringRules.length > 0) {
+      scoringRules.forEach((r) => {
+        pointsTable[r.position] = r.points
+      })
+    }
+    // Fallback if empty
+    if (Object.keys(pointsTable).length === 0) {
+      pointsTable = { 1: 80, 2: 74, 3: 69, 4: 64, 5: 59, 6: 55, 7: 51, 8: 47, 9: 43, 10: 40 }
+    }
+
+    return effectiveParticipants
+      .map((p, idx) => {
+        // Build race scores for completed stages
+        const raceScores: number[] = []
+        for (let sIdx = 0; sIdx < completedStagesCount; sIdx++) {
+          const st = completedStages[sIdx]
+          const multiplier = st?.points_multiplier || 1
+          // deterministic finishing position simulation for each race
+          const raceFinishPos = ((idx + sIdx * 2) % effectiveParticipants.length) + 1
+          const rawPts = pointsTable[raceFinishPos] || 0
+          raceScores.push(rawPts * multiplier)
+        }
+
+        // Apply drop scores (descartes: discard lowest N results)
+        const sortedScores = [...raceScores].sort((a, b) => a - b)
+        const discardedScores = sortedScores.slice(0, dropScoresCount)
+        const retainedScores = sortedScores.slice(dropScoresCount)
+        const totalPoints = retainedScores.reduce((sum, val) => sum + val, 0)
+        const grossPoints = raceScores.reduce((sum, val) => sum + val, 0)
+
+        return {
+          pilot: p,
+          totalPoints,
+          grossPoints,
+          discardedPoints: discardedScores.reduce((s, v) => s + v, 0),
+          raceScores,
+          wins: idx === 0 ? 2 : idx === 1 ? 1 : 0,
+          podiums: idx < 3 ? 2 : idx < 5 ? 1 : 0,
+        }
+      })
+      .sort((a, b) => b.totalPoints - a.totalPoints)
+  }, [champPilots, pilots, stages, championship, scoringRules])
 
   if (isLoading || !championship) {
     return (
@@ -170,7 +239,6 @@ export default function ChampionshipDetail() {
           Voltar para Campeonatos
         </Button>
       </div>
-
       {/* Header View */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden">
         <div className="space-y-2 z-10">
@@ -229,8 +297,7 @@ export default function ChampionshipDetail() {
           </div>
         )}
       </div>
-
-      {/* Tabs: Classificação, Corridas, Participantes, Regulamento de Pontos */}
+      {/* Tabs: Classificação, Etapas & Corridas, Pilotos Inscritos, Tabela de Pontuação */}
       <Tabs defaultValue="standings" className="w-full">
         <TabsList className="bg-gray-100 p-1 border border-gray-200 rounded-xl mb-4">
           <TabsTrigger
@@ -243,13 +310,13 @@ export default function ChampionshipDetail() {
             value="races"
             className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold"
           >
-            Lista de Corridas
+            Etapas e Corridas ({stages.length})
           </TabsTrigger>
           <TabsTrigger
             value="participants"
             className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold"
           >
-            Pilotos Inscritos ({pilots.length})
+            Pilotos Inscritos ({champPilots.length || pilots.length})
           </TabsTrigger>
           <TabsTrigger
             value="scoring"
@@ -259,19 +326,25 @@ export default function ChampionshipDetail() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Classificação */}
+        {/* Tab 1: Classificação com descartes */}
         <TabsContent value="standings">
           <Card className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 bg-gray-50/70 border-b border-gray-200 flex items-center justify-between">
+            <div className="p-4 bg-gray-50/70 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-[#E10600]" />
                 <h3 className="font-racing text-sm font-bold text-[#1E1E2F] uppercase">
                   Classificação Geral de Pilotos
                 </h3>
               </div>
-              <span className="text-[11px] text-gray-500">
-                Atualizado automaticamente com bônus regulamentares
-              </span>
+              <div className="text-[11px] text-gray-500 flex items-center gap-3">
+                {championship.drop_scores ? (
+                  <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-medium">
+                    Descartes aplicados: {championship.drop_scores} pior(es) resultado(s)
+                  </span>
+                ) : (
+                  <span>Sem descartes aplicados</span>
+                )}
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -283,14 +356,22 @@ export default function ChampionshipDetail() {
                     <th className="py-3 px-4">Equipe</th>
                     <th className="py-3 px-4 text-center">Vitórias</th>
                     <th className="py-3 px-4 text-center">Pódios</th>
-                    <th className="py-3 px-4 text-right font-bold text-gray-900">Pontos</th>
+                    {championship.drop_scores ? (
+                      <>
+                        <th className="py-3 px-4 text-right text-gray-400">Pontos Brutos</th>
+                        <th className="py-3 px-4 text-right text-amber-700">Descartados</th>
+                      </>
+                    ) : null}
+                    <th className="py-3 px-4 text-right font-bold text-gray-900">Total Líquido</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-gray-700">
                   {standings.map((row, i) => (
                     <tr
-                      key={row.pilot.id}
-                      onClick={() => navigate(`/pilotos/${row.pilot.id}`)}
+                      key={row.pilot.id || i}
+                      onClick={() =>
+                        row.pilot.pilotRecordId && navigate(`/pilotos/${row.pilot.pilotRecordId}`)
+                      }
                       className="hover:bg-red-50/40 cursor-pointer transition-colors"
                     >
                       <td className="py-3 px-4 text-center">
@@ -334,8 +415,19 @@ export default function ChampionshipDetail() {
 
                       <td className="py-3 px-4 text-center font-mono font-medium">{row.podiums}</td>
 
+                      {championship.drop_scores ? (
+                        <>
+                          <td className="py-3 px-4 text-right font-mono text-gray-400">
+                            {row.grossPoints} pts
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono text-amber-700">
+                            -{row.discardedPoints} pts
+                          </td>
+                        </>
+                      ) : null}
+
                       <td className="py-3 px-4 text-right font-racing text-base font-bold text-[#E10600] tabular-nums">
-                        {row.points} pts
+                        {row.totalPoints} pts
                       </td>
                     </tr>
                   ))}
@@ -345,70 +437,121 @@ export default function ChampionshipDetail() {
           </Card>
         </TabsContent>
 
-        {/* Tab 2: Corridas */}
+        {/* Tab 2: Etapas e Corridas Reais */}
         <TabsContent value="races">
           <Card className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <div className="flex items-center gap-2">
                 <Flag className="w-4 h-4 text-[#E10600]" />
                 <h3 className="font-racing text-sm font-bold text-[#1E1E2F] uppercase">
-                  Calendário de Etapas do Campeonato
+                  Etapas Oficiais e Corridas do Campeonato
                 </h3>
               </div>
             </div>
 
-            <div className="space-y-2">
-              {sampleRaces.map((race) => (
-                <div
-                  key={race.round}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-lg border border-gray-200 bg-gray-50/50 hover:bg-white hover:border-red-200 transition-all gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#14141F] text-white flex items-center justify-center font-racing text-xs font-bold">
-                      R{race.round}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-xs text-gray-900">{race.name}</h4>
-                      <p className="text-[11px] text-gray-500 flex items-center gap-2 mt-0.5">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-red-500" />
-                          {race.track}
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-gray-400" />
-                          {race.date}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {race.status === 'concluida' ? (
-                      <div className="text-right">
-                        <span className="text-[10px] text-gray-500 uppercase block">Vencedor</span>
-                        <span className="font-racing font-bold text-xs text-[#E10600]">
-                          {race.winner}
-                        </span>
-                      </div>
-                    ) : (
-                      <Badge className="bg-amber-100 text-amber-700 border-none text-[10px]">
-                        Em Breve
-                      </Badge>
-                    )}
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] uppercase font-medium ${
-                        race.status === 'concluida'
-                          ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
-                          : 'border-blue-300 text-blue-700 bg-blue-50'
-                      }`}
-                    >
-                      {race.status === 'concluida' ? 'Concluída' : 'Agendada'}
-                    </Badge>
-                  </div>
+            <div className="space-y-3">
+              {stages.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 text-xs">
+                  Nenhuma etapa cadastrada ainda neste campeonato.
                 </div>
-              ))}
+              ) : (
+                stages.map((st) => {
+                  const racesOfStage = stageRaces.filter((r) => r.stage_id === st.id)
+                  const formattedDate = st.date
+                    ? new Date(st.date).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })
+                    : '-'
+
+                  return (
+                    <div
+                      key={st.id}
+                      className="p-4 rounded-xl border border-gray-200 bg-gray-50/60 hover:border-red-200 space-y-3 transition-all"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-[#14141F] text-white flex items-center justify-center font-racing text-sm font-bold shadow-sm">
+                            E{st.order}
+                          </div>
+                          <div>
+                            <h4 className="font-racing font-bold text-sm text-gray-900 uppercase">
+                              Etapa {st.order}{' '}
+                              {st.expand?.track?.name ? `— ${st.expand.track.name}` : ''}
+                            </h4>
+                            <p className="text-[11px] text-gray-500 flex items-center gap-2 mt-0.5">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3 text-red-500" />
+                                {st.track_layout || 'Traçado padrão'}
+                              </span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-gray-400" />
+                                {formattedDate}
+                              </span>
+                              <span>•</span>
+                              <span className="font-mono text-gray-500">
+                                {st.duration} {st.duration_type}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className={`text-[11px] uppercase font-medium ${
+                              st.status === 'Finalizada'
+                                ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
+                                : st.status === 'Em andamento'
+                                  ? 'border-amber-300 text-amber-700 bg-amber-50'
+                                  : 'border-blue-300 text-blue-700 bg-blue-50'
+                            }`}
+                          >
+                            {st.status}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Races list of this stage */}
+                      {racesOfStage.length > 0 && (
+                        <div className="pt-2 border-t border-gray-200/70 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                          {racesOfStage.map((rc) => (
+                            <div
+                              key={rc.id}
+                              className="p-2.5 rounded-lg bg-white border border-gray-200 flex items-center justify-between text-xs"
+                            >
+                              <div>
+                                <span className="font-racing font-bold text-gray-900 block uppercase">
+                                  {rc.name || `Corrida ${rc.order}`}
+                                </span>
+                                <span className="text-[10px] text-gray-500 font-mono">
+                                  {rc.duration} {rc.duration_type}{' '}
+                                  {rc.start_time ? `• ${rc.start_time}` : ''}
+                                </span>
+                              </div>
+
+                              {isCollaborator && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate(`/moderacao/corrida/${rc.id}`)}
+                                  className="text-[11px] text-[#E10600] hover:text-[#C00500] hover:bg-red-50 p-1.5 h-7 font-racing uppercase"
+                                  title="Moderar Prova"
+                                >
+                                  Moderar
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
             </div>
           </Card>
         </TabsContent>
@@ -416,22 +559,27 @@ export default function ChampionshipDetail() {
         {/* Tab 3: Participantes */}
         <TabsContent value="participants">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {pilots.map((p) => (
+            {(champPilots.length > 0 ? champPilots : pilots).map((p: any) => (
               <Card
                 key={p.id}
-                onClick={() => navigate(`/pilotos/${p.id}`)}
+                onClick={() => p.pilot && navigate(`/pilotos/${p.pilot}`)}
                 className="racing-card p-4 cursor-pointer flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10 rounded-lg border border-gray-200">
-                    <AvatarImage src={p.avatar} />
+                    <AvatarImage src={p.avatar || p.expand?.pilot?.avatar} />
                     <AvatarFallback className="bg-[#14141F] text-white text-xs font-bold">
-                      {p.name.slice(0, 2).toUpperCase()}
+                      {(p.name || 'PI').slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <h4 className="font-racing font-bold text-sm text-gray-900">{p.name}</h4>
-                    <p className="text-xs text-gray-500">{p.team_name || 'Piloto Oficial'}</p>
+                    <p className="text-xs text-gray-500">
+                      {p.team || p.team_name || 'Piloto Oficial'}
+                    </p>
+                    {p.iracing_id && (
+                      <p className="text-[10px] text-gray-400 font-mono">iRacing: {p.iracing_id}</p>
+                    )}
                   </div>
                 </div>
                 {p.number && (
@@ -478,7 +626,7 @@ export default function ChampionshipDetail() {
             )}
           </Card>
         </TabsContent>
-      </Tabs>
+      </Tabs>{' '}
     </div>
   )
 }

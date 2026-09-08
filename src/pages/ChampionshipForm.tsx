@@ -6,17 +6,11 @@ import {
   Trash2,
   Save,
   Award,
-  Zap,
   Upload,
   Car as CarIcon,
   Check,
-  X,
-  Clock,
-  Layers,
-  Sparkles,
-  Info,
   Calendar,
-  CloudSun,
+  Users,
 } from 'lucide-react'
 import {
   championshipsService,
@@ -24,7 +18,12 @@ import {
   scoringRulesService,
   carsService,
   manufacturersService,
-  championshipBatteriesService,
+  tracksService,
+  pilotsService,
+  championshipStagesService,
+  stageRacesService,
+  scoringPresetsService,
+  championshipPilotsService,
   getFileUrl,
 } from '@/services/api'
 import type {
@@ -33,8 +32,12 @@ import type {
   ChampionshipType,
   Car,
   Manufacturer,
-  BatteryDurationType,
-  ChampionshipBattery,
+  Track,
+  Pilot,
+  ScoringPreset,
+  SingleScoringConfig,
+  MultiClassScoringConfig,
+  ChampionshipPilot,
 } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,22 +61,13 @@ import {
 import { Card } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 
-interface ScoringRow {
-  position: number
-  points: number
-}
+// New Sub-tabs
+import StagesTab, { LocalStage, LocalStageRace } from '@/components/championship/StagesTab'
+import PilotsTab, { LocalChampPilot } from '@/components/championship/PilotsTab'
+import ScoringTab from '@/components/championship/ScoringTab'
+import RaceCommentsModal from '@/components/championship/RaceCommentsModal'
 
-interface LocalBattery {
-  id?: string
-  order: number
-  duration_type: BatteryDurationType
-  duration: number
-  start_time: string
-  weather: string
-  inverted_positions: number
-}
-
-type TabKey = 'detalhes' | 'carros' | 'baterias' | 'etapas' | 'pilotos' | 'pontuacao'
+type TabKey = 'detalhes' | 'carros' | 'etapas' | 'pilotos' | 'pontuacao'
 
 export default function ChampionshipForm() {
   const { id } = useParams<{ id: string }>()
@@ -82,7 +76,7 @@ export default function ChampionshipForm() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  // Active tab state
+  // Active tab state (baterias removed)
   const [activeTab, setActiveTab] = useState<TabKey>('detalhes')
 
   // Basic Details
@@ -124,27 +118,93 @@ export default function ChampionshipForm() {
   const [isCarModalOpen, setIsCarModalOpen] = useState(false)
   const [modalSelectedCarIds, setModalSelectedCarIds] = useState<string[]>([])
 
-  // Batteries Tab States
-  const [batteries, setBatteries] = useState<LocalBattery[]>([])
-  const [deletedBatteryIds, setDeletedBatteryIds] = useState<string[]>([])
-  const [newBatDurationType, setNewBatDurationType] = useState<BatteryDurationType>('Minutos')
-  const [newBatDuration, setNewBatDuration] = useState<number>(50)
-  const [newBatStartTime, setNewBatStartTime] = useState<string>('')
-  const [newBatWeather, setNewBatWeather] = useState<string>('')
-  const [newBatInvertedPositions, setNewBatInvertedPositions] = useState<number>(0)
+  // ETAPAS Tab State
+  const [stages, setStages] = useState<LocalStage[]>([])
+  const [deletedStageIds, setDeletedStageIds] = useState<string[]>([])
+  const [deletedRaceIds, setDeletedRaceIds] = useState<string[]>([])
+  const [tracksList, setTracksList] = useState<Track[]>([])
 
-  // Scoring configuration
-  const [scoringRows, setScoringRows] = useState<ScoringRow[]>([
-    { position: 1, points: 25 },
-    { position: 2, points: 18 },
-    { position: 3, points: 15 },
-    { position: 4, points: 12 },
-    { position: 5, points: 10 },
-    { position: 6, points: 8 },
-    { position: 7, points: 6 },
-    { position: 8, points: 4 },
-    { position: 9, points: 2 },
-    { position: 10, points: 1 },
+  // Race comments modal
+  const [selectedRaceForComments, setSelectedRaceForComments] = useState<any | null>(null)
+  const [selectedStageForComments, setSelectedStageForComments] = useState<LocalStage | null>(null)
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false)
+
+  // PILOTOS Tab State
+  const [champPilots, setChampPilots] = useState<LocalChampPilot[]>([])
+  const [deletedPilotIds, setDeletedPilotIds] = useState<string[]>([])
+  const [availablePilots, setAvailablePilots] = useState<Pilot[]>([])
+
+  // PONTUAÇÃO Tab State
+  const [presets, setPresets] = useState<ScoringPreset[]>([])
+  const [singleConfig, setSingleConfig] = useState<SingleScoringConfig>({
+    preset_id: undefined,
+    rules: [
+      { position: 1, points: 80 },
+      { position: 2, points: 74 },
+      { position: 3, points: 69 },
+      { position: 4, points: 64 },
+      { position: 5, points: 59 },
+      { position: 6, points: 55 },
+      { position: 7, points: 51 },
+      { position: 8, points: 47 },
+      { position: 9, points: 43 },
+      { position: 10, points: 40 },
+      { position: 11, points: 37 },
+      { position: 12, points: 36 },
+      { position: 13, points: 31 },
+      { position: 14, points: 28 },
+      { position: 15, points: 25 },
+      { position: 16, points: 22 },
+      { position: 17, points: 19 },
+      { position: 18, points: 17 },
+      { position: 19, points: 15 },
+      { position: 20, points: 13 },
+      { position: 21, points: 12 },
+      { position: 22, points: 11 },
+      { position: 23, points: 10 },
+      { position: 24, points: 9 },
+      { position: 25, points: 8 },
+      { position: 26, points: 7 },
+      { position: 27, points: 6 },
+      { position: 28, points: 5 },
+      { position: 29, points: 4 },
+      { position: 30, points: 3 },
+      { position: 31, points: 2 },
+      { position: 32, points: 1 },
+      { position: 33, points: 0 },
+      { position: 34, points: 0 },
+      { position: 35, points: 0 },
+      { position: 36, points: 0 },
+      { position: 37, points: 0 },
+      { position: 38, points: 0 },
+      { position: 39, points: 0 },
+      { position: 40, points: 0 },
+    ],
+  })
+
+  const [multiConfigs, setMultiConfigs] = useState<MultiClassScoringConfig[]>([
+    {
+      class_name: 'Stock Car Pro',
+      preset_id: undefined,
+      rules: [
+        { position: 1, points: 80 },
+        { position: 2, points: 74 },
+        { position: 3, points: 69 },
+        { position: 4, points: 64 },
+        { position: 5, points: 59 },
+      ],
+    },
+    {
+      class_name: 'Stock Series',
+      preset_id: undefined,
+      rules: [
+        { position: 1, points: 80 },
+        { position: 2, points: 74 },
+        { position: 3, points: 69 },
+        { position: 4, points: 64 },
+        { position: 5, points: 59 },
+      ],
+    },
   ])
 
   // Lookups & loaders
@@ -156,17 +216,32 @@ export default function ChampionshipForm() {
     const init = async () => {
       try {
         setIsLoading(true)
-        const [sList, allCars, allManus] = await Promise.all([
+        const [sList, allCars, allManus, allTracks, allPilots, allPresets] = await Promise.all([
           seasonsService.list(),
           carsService.list(),
           manufacturersService.list(),
+          tracksService.list(),
+          pilotsService.list(),
+          scoringPresetsService.list(),
         ])
         setSeasons(sList)
         setCarsList(allCars)
         setManufacturersList(allManus)
+        setTracksList(allTracks)
+        setAvailablePilots(allPilots)
+        setPresets(allPresets)
 
         if (sList.length > 0 && !seasonId) {
           setSeasonId(sList[0].id)
+        }
+
+        // Apply Stock Car preset if found
+        const stockCarPreset = allPresets.find((p) => p.name.includes('Stock Car'))
+        if (stockCarPreset) {
+          setSingleConfig({
+            preset_id: stockCarPreset.id,
+            rules: stockCarPreset.rules.map((r) => ({ position: r.position, points: r.points })),
+          })
         }
 
         if (id) {
@@ -206,26 +281,61 @@ export default function ChampionshipForm() {
             setSelectedCarIds(champ.cars)
           }
 
-          // Load scoring rules
-          const rules = await scoringRulesService.listByChampionship(id)
-          if (rules.length > 0) {
-            setScoringRows(rules.map((r) => ({ position: r.position, points: r.points })))
-            if (rules[0].bonus_fastest_lap !== undefined && rules[0].bonus_fastest_lap !== null) {
-              setBonusFastestLap(rules[0].bonus_fastest_lap)
+          // Load stages_scoring JSON if present
+          if (champ.stages_scoring) {
+            if (Array.isArray(champ.stages_scoring)) {
+              setMultiConfigs(champ.stages_scoring as MultiClassScoringConfig[])
+            } else if (
+              (champ.stages_scoring as SingleScoringConfig).rules &&
+              Array.isArray((champ.stages_scoring as SingleScoringConfig).rules)
+            ) {
+              setSingleConfig(champ.stages_scoring as SingleScoringConfig)
             }
           }
 
-          // Load batteries
-          const batts = await championshipBatteriesService.listByChampionship(id)
-          setBatteries(
-            batts.map((b) => ({
-              id: b.id,
-              order: b.order,
-              duration_type: b.duration_type,
-              duration: b.duration,
-              start_time: b.start_time || '',
-              weather: b.weather || '',
-              inverted_positions: b.inverted_positions ?? 0,
+          // Load championship stages + their races
+          const stList = await championshipStagesService.listByChampionship(id)
+          const localStages: LocalStage[] = []
+
+          for (const s of stList) {
+            const races = await stageRacesService.listByStage(s.id)
+            localStages.push({
+              id: s.id,
+              order: s.order,
+              date: s.date || '',
+              duration_type: s.duration_type || 'Minutos',
+              duration: s.duration || 0,
+              points_multiplier: s.points_multiplier ?? 1,
+              track: s.track || '',
+              track_layout: s.track_layout || '',
+              status: s.status || 'Agendada',
+              races: races.map((r) => ({
+                id: r.id,
+                stage_id: r.stage_id,
+                order: r.order,
+                duration_type: r.duration_type || 'Minutos',
+                duration: r.duration,
+                start_time: r.start_time || '',
+                weather: r.weather || '',
+                inverted_positions: r.inverted_positions ?? 0,
+                name: r.name || `Corrida ${r.order}`,
+              })),
+            })
+          }
+          setStages(localStages)
+
+          // Load championship pilots
+          const pList = await championshipPilotsService.listByChampionship(id)
+          setChampPilots(
+            pList.map((p) => ({
+              id: p.id,
+              pilot_id: p.pilot || '',
+              name: p.name || '',
+              iracing_id: p.iracing_id || '',
+              number: p.number ?? '',
+              team: p.team || '',
+              number_options: p.number_options || '',
+              car_class: p.car_class || '',
             })),
           )
         }
@@ -279,74 +389,9 @@ export default function ChampionshipForm() {
     return Array.from(map.values())
   }, [selectedCarIds, carsList, manufacturersList])
 
-  // Scoring methods
-  const handleAddPosition = () => {
-    const nextPos = scoringRows.length > 0 ? scoringRows[scoringRows.length - 1].position + 1 : 1
-    setScoringRows([...scoringRows, { position: nextPos, points: 0 }])
-  }
-
-  const handleRemovePosition = (index: number) => {
-    setScoringRows(scoringRows.filter((_, idx) => idx !== index))
-  }
-
-  const handleScoreChange = (index: number, points: number) => {
-    const updated = [...scoringRows]
-    updated[index].points = points
-    setScoringRows(updated)
-  }
-
-  // Battery handlers
-  const handleAddBattery = () => {
-    if (!newBatDuration || newBatDuration <= 0) {
-      toast({
-        title: 'Atenção',
-        description: 'Informe uma duração válida para a bateria.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    const nextOrder = batteries.length > 0 ? Math.max(...batteries.map((b) => b.order)) + 1 : 1
-
-    const newBat: LocalBattery = {
-      order: nextOrder,
-      duration_type: newBatDurationType,
-      duration: Number(newBatDuration),
-      start_time: newBatStartTime,
-      weather: newBatWeather,
-      inverted_positions: Number(newBatInvertedPositions) || 0,
-    }
-
-    setBatteries([...batteries, newBat])
-    // Reset inline inputs
-    setNewBatDuration(50)
-    setNewBatStartTime('')
-    setNewBatWeather('')
-    setNewBatInvertedPositions(0)
-
-    toast({
-      title: 'Bateria adicionada',
-      description: `Bateria ${nextOrder} adicionada à lista. Lembre-se de salvar o campeonato.`,
-    })
-  }
-
-  const handleCancelNewBattery = () => {
-    setNewBatDuration(50)
-    setNewBatStartTime('')
-    setNewBatWeather('')
-    setNewBatInvertedPositions(0)
-  }
-
-  const handleRemoveBattery = (index: number) => {
-    const item = batteries[index]
-    if (item.id) {
-      setDeletedBatteryIds([...deletedBatteryIds, item.id])
-    }
-    const remaining = batteries.filter((_, idx) => idx !== index)
-    // renumber orders sequentially
-    const reordered = remaining.map((b, idx) => ({ ...b, order: idx + 1 }))
-    setBatteries(reordered)
-  }
+  const selectedCarsArray = useMemo(() => {
+    return carsList.filter((c) => selectedCarIds.includes(c.id))
+  }, [carsList, selectedCarIds])
 
   // Car selection modal handlers
   const openCarSelector = () => {
@@ -356,7 +401,7 @@ export default function ChampionshipForm() {
 
   const toggleModalCar = (carId: string) => {
     if (modalSelectedCarIds.includes(carId)) {
-      setModalSelectedCarIds(modalSelectedCarIds.filter((id) => id !== carId))
+      setModalSelectedCarIds(modalSelectedCarIds.filter((cid) => cid !== carId))
     } else {
       setModalSelectedCarIds([...modalSelectedCarIds, carId])
     }
@@ -368,7 +413,14 @@ export default function ChampionshipForm() {
   }
 
   const handleRemoveSelectedCar = (carId: string) => {
-    setSelectedCarIds(selectedCarIds.filter((id) => id !== carId))
+    setSelectedCarIds(selectedCarIds.filter((cid) => cid !== carId))
+  }
+
+  // Open comments for a race
+  const handleOpenComments = (race: LocalStageRace, stage: LocalStage) => {
+    setSelectedRaceForComments(race)
+    setSelectedStageForComments(stage)
+    setIsCommentsModalOpen(true)
   }
 
   // Submit form
@@ -424,8 +476,11 @@ export default function ChampionshipForm() {
       formData.append('visible_to_pilots', String(visibleToPilots))
       formData.append('multi_class', String(multiClass))
 
+      // Stages scoring JSON
+      const stagesScoringPayload = multiClass ? multiConfigs : singleConfig
+      formData.append('stages_scoring', JSON.stringify(stagesScoringPayload))
+
       // Cars relation
-      // In PocketBase, relation fields in FormData can be set as multiple append or serialized array
       formData.delete('cars')
       selectedCarIds.forEach((cId) => {
         formData.append('cars', cId)
@@ -444,41 +499,109 @@ export default function ChampionshipForm() {
         champId = created.id
       }
 
-      // Save scoring rules
       if (champId) {
-        await scoringRulesService.saveRules(
-          champId,
-          scoringRows.map((r) => ({
-            position: r.position,
-            points: Number(r.points),
-            bonus_fastest_lap: Number(bonusFastestLap),
-          })),
-        )
+        // Sync scoring_rules backwards compatibility
+        const rulesForLegacy = multiClass ? multiConfigs[0]?.rules || [] : singleConfig.rules
+        if (rulesForLegacy.length > 0) {
+          await scoringRulesService.saveRules(
+            champId,
+            rulesForLegacy.map((r) => ({
+              position: r.position,
+              points: Number(r.points),
+              bonus_fastest_lap: Number(bonusFastestLap),
+            })),
+          )
+        }
 
-        // Delete removed batteries
-        for (const delId of deletedBatteryIds) {
+        // 1. Delete removed stages
+        for (const delStageId of deletedStageIds) {
           try {
-            await championshipBatteriesService.delete(delId)
+            await championshipStagesService.delete(delStageId)
           } catch (err) {
-            console.error('Error deleting battery:', err)
+            console.error('Error deleting stage:', err)
           }
         }
 
-        // Save or update batteries
-        for (const bat of batteries) {
-          const batData = {
-            championship_id: champId,
-            order: bat.order,
-            duration_type: bat.duration_type,
-            duration: Number(bat.duration),
-            start_time: bat.start_time,
-            weather: bat.weather,
-            inverted_positions: Number(bat.inverted_positions) || 0,
+        // 2. Delete removed races
+        for (const delRaceId of deletedRaceIds) {
+          try {
+            await stageRacesService.delete(delRaceId)
+          } catch (err) {
+            console.error('Error deleting race:', err)
           }
-          if (bat.id) {
-            await championshipBatteriesService.update(bat.id, batData)
+        }
+
+        // 3. Save / Update stages and their races
+        for (const st of stages) {
+          const stageData: any = {
+            championship_id: champId,
+            order: st.order,
+            date: st.date || undefined,
+            duration_type: st.duration_type,
+            duration: Number(st.duration) || 0,
+            points_multiplier: Number(st.points_multiplier) || 1,
+            track: st.track || undefined,
+            track_layout: st.track_layout,
+            status: st.status,
+          }
+
+          let savedStageId = st.id
+          if (savedStageId) {
+            await championshipStagesService.update(savedStageId, stageData)
           } else {
-            await championshipBatteriesService.create(batData)
+            const createdStage = await championshipStagesService.create(stageData)
+            savedStageId = createdStage.id
+          }
+
+          // Races inside this stage
+          if (savedStageId) {
+            for (const rc of st.races) {
+              const raceData = {
+                stage_id: savedStageId,
+                order: rc.order,
+                duration_type: rc.duration_type,
+                duration: Number(rc.duration) || 50,
+                start_time: rc.start_time,
+                weather: rc.weather,
+                inverted_positions: Number(rc.inverted_positions) || 0,
+                name: rc.name || `Corrida ${rc.order}`,
+              }
+
+              if (rc.id) {
+                await stageRacesService.update(rc.id, raceData)
+              } else {
+                await stageRacesService.create(raceData)
+              }
+            }
+          }
+        }
+
+        // 4. Delete removed pilots
+        for (const delPilotId of deletedPilotIds) {
+          try {
+            await championshipPilotsService.delete(delPilotId)
+          } catch (err) {
+            console.error('Error deleting pilot:', err)
+          }
+        }
+
+        // 5. Save / Update championship pilots
+        for (const p of champPilots) {
+          const pilotData: any = {
+            championship_id: champId,
+            pilot: p.pilot_id || undefined,
+            name: p.name,
+            iracing_id: p.iracing_id,
+            number: p.number !== '' ? Number(p.number) : undefined,
+            team: p.team,
+            number_options: p.number_options,
+            car_class: p.car_class,
+          }
+
+          if (p.id) {
+            await championshipPilotsService.update(p.id, pilotData)
+          } else {
+            await championshipPilotsService.create(pilotData)
           }
         }
       }
@@ -486,7 +609,7 @@ export default function ChampionshipForm() {
       toast({
         title: 'Sucesso',
         description: isEditing
-          ? 'Campeonato atualizado com sucesso!'
+          ? 'Campeonato e etapas atualizados com sucesso!'
           : 'Campeonato criado com sucesso!',
       })
 
@@ -531,25 +654,24 @@ export default function ChampionshipForm() {
             {pageTitle}
           </h1>
           <p className="text-xs text-gray-400 mt-1 pl-5">
-            Configure parâmetros oficiais, carros homologados, baterias e pontuação
+            Configure parâmetros oficiais, carros homologados, etapas com múltiplas corridas,
+            inscrições e biblioteca de pontuação
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Navigation Tabs Header */}
+        {/* Navigation Tabs Header: BATERIAS REMOVED; ETAPAS, PILOTOS & PONTUAÇÃO active */}
         <div className="border-b border-white/10 bg-[#161622] rounded-t-xl px-2 pt-2">
           <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none">
             {[
               { id: 'detalhes', label: 'DETALHES' },
               { id: 'carros', label: 'CARROS' },
-              { id: 'baterias', label: 'BATERIAS' },
               { id: 'etapas', label: 'ETAPAS' },
               { id: 'pilotos', label: 'PILOTOS' },
               { id: 'pontuacao', label: 'PONTUAÇÃO' },
             ].map((tab) => {
               const isActive = activeTab === tab.id
-              const isLocked = tab.id === 'etapas' || tab.id === 'pilotos'
 
               return (
                 <button
@@ -561,11 +683,6 @@ export default function ChampionshipForm() {
                   }`}
                 >
                   <span>{tab.label}</span>
-                  {isLocked && (
-                    <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-white/10 text-gray-400 font-sans tracking-normal ml-1">
-                      Em breve
-                    </span>
-                  )}
                   {isActive && (
                     <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#E10600] shadow-[0_0_8px_rgba(225,6,0,0.6)]" />
                   )}
@@ -696,6 +813,9 @@ export default function ChampionshipForm() {
                     onChange={(e) => setDropScores(Number(e.target.value))}
                     className="text-xs font-mono bg-[#161622] border-white/10 text-white h-9"
                   />
+                  <span className="text-[10px] text-gray-500 block leading-tight">
+                    Piores resultados descartados por piloto
+                  </span>
                 </div>
 
                 <div className="space-y-1.5 bg-[#1F1F30]/60 p-3 rounded-lg border border-white/5">
@@ -1011,7 +1131,6 @@ export default function ChampionshipForm() {
                       key={group.manufacturerName}
                       className="bg-[#1F1F30]/70 border border-white/10 rounded-xl overflow-hidden shadow-sm"
                     >
-                      {/* Manufacturer header */}
                       <div className="px-4 py-3 bg-[#14141F] border-b border-white/10 flex items-center justify-between">
                         <span className="font-racing text-xs font-bold text-white uppercase tracking-wider">
                           {group.manufacturerName}
@@ -1021,7 +1140,6 @@ export default function ChampionshipForm() {
                         </span>
                       </div>
 
-                      {/* Cars list */}
                       <div className="divide-y divide-white/5">
                         {group.cars.map((car) => (
                           <div
@@ -1058,296 +1176,43 @@ export default function ChampionshipForm() {
           </div>
         )}
 
-        {/* Tab 3: BATERIAS */}
-        {activeTab === 'baterias' && (
-          <div className="space-y-6 animate-fade-in">
-            <Card className="p-6 bg-[#161622] border border-white/10 rounded-xl shadow-lg space-y-6">
-              {/* Inline Addition Row (Verbatim matching print 3) */}
-              <div className="p-4 bg-[#1F1F30]/60 rounded-xl border border-white/10 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                  {/* Duração em */}
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-300">Duração em</Label>
-                    <Select
-                      value={newBatDurationType}
-                      onValueChange={(val) => setNewBatDurationType(val as BatteryDurationType)}
-                    >
-                      <SelectTrigger className="text-xs bg-[#161622] border-white/10 text-white h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#1F1F30] border-white/10 text-white">
-                        <SelectItem value="Minutos">Minutos</SelectItem>
-                        <SelectItem value="Voltas">Voltas</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Minutos or Voltas (Label dynamically adjusts) */}
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-300">{newBatDurationType}</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={newBatDuration}
-                      onChange={(e) => setNewBatDuration(Number(e.target.value))}
-                      className="text-xs font-mono bg-[#161622] border-white/10 text-white h-9"
-                    />
-                  </div>
-
-                  {/* Hora do dia */}
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-300">Hora do dia</Label>
-                    <Input
-                      type="time"
-                      value={newBatStartTime}
-                      onChange={(e) => setNewBatStartTime(e.target.value)}
-                      placeholder="14:00"
-                      className="text-xs bg-[#161622] border-white/10 text-white h-9"
-                    />
-                  </div>
-
-                  {/* Clima */}
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-300">Clima</Label>
-                    <Input
-                      type="text"
-                      placeholder="Limpo / Nublado"
-                      value={newBatWeather}
-                      onChange={(e) => setNewBatWeather(e.target.value)}
-                      className="text-xs bg-[#161622] border-white/10 text-white h-9"
-                    />
-                  </div>
-
-                  {/* Posições invertidas */}
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-300">Posições invertidas</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={newBatInvertedPositions}
-                      onChange={(e) => setNewBatInvertedPositions(Number(e.target.value))}
-                      className="text-xs font-mono bg-[#161622] border-white/10 text-white h-9"
-                    />
-                  </div>
-                </div>
-
-                {/* Inline Action Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCancelNewBattery}
-                    className="text-xs bg-transparent border-white/15 text-gray-300 hover:bg-white/5 uppercase"
-                  >
-                    CANCELAR
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleAddBattery}
-                    className="bg-[#14141F] hover:bg-[#2A2A3D] text-white text-xs font-racing uppercase tracking-wider px-4 border border-white/10 shadow-sm"
-                  >
-                    <Plus className="w-3.5 h-3.5 mr-1 text-[#E10600]" />
-                    ADICIONAR BATERIA
-                  </Button>
-                </div>
-              </div>
-
-              {/* Batteries Table */}
-              <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#1F1F30]/30">
-                <table className="w-full text-left text-xs text-gray-300">
-                  <thead>
-                    <tr className="border-b border-white/10 bg-[#14141F] text-[11px] font-racing text-gray-400 uppercase tracking-wider">
-                      <th className="py-3 px-4 w-16 text-center">Actions</th>
-                      <th className="py-3 px-4 w-24">Bateria</th>
-                      <th className="py-3 px-4">Duração</th>
-                      <th className="py-3 px-4">Hora do dia</th>
-                      <th className="py-3 px-4">Clima</th>
-                      <th className="py-3 px-4 text-center">Pos. Invertidas</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {batteries.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-8 text-center text-gray-500">
-                          Nenhuma bateria cadastrada. Utilize o formulário acima para adicionar.
-                        </td>
-                      </tr>
-                    ) : (
-                      batteries.map((bat, idx) => (
-                        <tr key={bat.id || idx} className="hover:bg-white/5 transition-colors">
-                          <td className="py-3 px-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveBattery(idx)}
-                              className="text-gray-400 hover:text-[#E10600] transition-colors p-1"
-                              title="Excluir bateria"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                          <td className="py-3 px-4 font-racing font-bold text-white text-sm">
-                            {bat.order}
-                          </td>
-                          <td className="py-3 px-4 font-mono font-medium text-gray-200">
-                            {bat.duration} {bat.duration_type}
-                          </td>
-                          <td className="py-3 px-4 text-gray-400">{bat.start_time || '-'}</td>
-                          <td className="py-3 px-4 text-gray-300">{bat.weather || '-'}</td>
-                          <td className="py-3 px-4 text-center font-mono">
-                            {bat.inverted_positions ? (
-                              <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[11px] border border-amber-500/20">
-                                {bat.inverted_positions} primeiras
-                              </span>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {/* Tab 4: ETAPAS (Placeholder as requested) */}
+        {/* Tab 3: ETAPAS (Integrated 1 to N races) */}
         {activeTab === 'etapas' && (
-          <div className="space-y-6 animate-fade-in">
-            <Card className="p-12 bg-[#161622] border border-white/10 rounded-xl shadow-lg text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-gray-400">
-                <Calendar className="w-7 h-7 text-[#E10600]" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-racing text-lg font-bold text-white uppercase tracking-wider">
-                  Etapas — Em breve
-                </h3>
-                <p className="text-xs text-gray-400 max-w-md mx-auto">
-                  A configuração detalhada das etapas será disponibilizada assim que os novos
-                  modelos forem aprovados.
-                </p>
-              </div>
-            </Card>
-          </div>
+          <StagesTab
+            stages={stages}
+            setStages={setStages}
+            deletedStageIds={deletedStageIds}
+            setDeletedStageIds={setDeletedStageIds}
+            deletedRaceIds={deletedRaceIds}
+            setDeletedRaceIds={setDeletedRaceIds}
+            tracks={tracksList}
+            onOpenComments={handleOpenComments}
+          />
         )}
 
-        {/* Tab 5: PILOTOS (Placeholder as requested) */}
+        {/* Tab 4: PILOTOS (Full table with filters, export and add modal) */}
         {activeTab === 'pilotos' && (
-          <div className="space-y-6 animate-fade-in">
-            <Card className="p-12 bg-[#161622] border border-white/10 rounded-xl shadow-lg text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-gray-400">
-                <Award className="w-7 h-7 text-[#E10600]" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-racing text-lg font-bold text-white uppercase tracking-wider">
-                  Pilotos — Em breve
-                </h3>
-                <p className="text-xs text-gray-400 max-w-md mx-auto">
-                  A gestão e homologação de pilotos inscritos nesta categoria será integrada em
-                  breve.
-                </p>
-              </div>
-            </Card>
-          </div>
+          <PilotsTab
+            champPilots={champPilots}
+            setChampPilots={setChampPilots}
+            deletedPilotIds={deletedPilotIds}
+            setDeletedPilotIds={setDeletedPilotIds}
+            availablePilots={availablePilots}
+          />
         )}
 
-        {/* Tab 6: PONTUAÇÃO (Existing dynamic scoring moved here) */}
+        {/* Tab 5: PONTUAÇÃO (Preset library and Multi-Class support) */}
         {activeTab === 'pontuacao' && (
-          <div className="space-y-6 animate-fade-in">
-            <Card className="p-6 bg-[#161622] border border-white/10 rounded-xl shadow-lg space-y-6">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-[#E10600]" />
-                  <div>
-                    <h2 className="font-racing text-base font-bold text-white uppercase tracking-wide">
-                      Sistema de Pontuação Configurável
-                    </h2>
-                    <p className="text-[11px] text-gray-400">
-                      Defina quantos pontos cada colocação no grid acumula ao término de cada
-                      corrida.
-                    </p>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddPosition}
-                  className="text-xs text-white border-white/15 bg-[#1F1F30] hover:bg-[#2A2A3D]"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1 text-[#E10600]" />
-                  Adicionar Posição
-                </Button>
-              </div>
-
-              {/* Fastest lap bonus highlight */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-[#1F1F30]/60 rounded-xl border border-white/5 items-center">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-[#E10600]/10 border border-[#E10600]/30 flex items-center justify-center text-[#E10600]">
-                    <Zap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold text-white block">
-                      Bônus por Volta Mais Rápida (Fastest Lap)
-                    </span>
-                    <span className="text-[11px] text-gray-400">
-                      Pontos extras concedidos ao piloto com a melhor volta da corrida
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 sm:justify-end">
-                  <Input
-                    type="number"
-                    min={0}
-                    value={bonusFastestLap}
-                    onChange={(e) => setBonusFastestLap(Number(e.target.value))}
-                    className="w-24 text-xs font-mono bg-[#161622] border-white/10 text-white text-center"
-                  />
-                  <span className="text-xs font-semibold text-gray-400">pts</span>
-                </div>
-              </div>
-
-              {/* Positions list */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-2">
-                {scoringRows.map((row, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-xl border border-white/10 bg-[#1F1F30]/70 flex items-center justify-between gap-2 shadow-sm"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-racing text-xs font-bold text-gray-300 w-6">
-                        {row.position}º
-                      </span>
-                      <span className="text-gray-500">→</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={row.points}
-                        onChange={(e) => handleScoreChange(idx, Number(e.target.value))}
-                        className="w-14 h-8 text-xs font-mono bg-[#161622] border-white/10 text-white p-1 text-center"
-                      />
-                      <span className="text-[10px] text-gray-400">pts</span>
-                    </div>
-
-                    {scoringRows.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePosition(idx)}
-                        className="text-gray-500 hover:text-[#E10600] transition-colors p-1"
-                        title="Remover posição"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
+          <ScoringTab
+            multiClass={multiClass}
+            singleConfig={singleConfig}
+            setSingleConfig={setSingleConfig}
+            multiConfigs={multiConfigs}
+            setMultiConfigs={setMultiConfigs}
+            presets={presets}
+            setPresets={setPresets}
+            selectedCars={selectedCarsArray}
+          />
         )}
 
         {/* Global Action Footer */}
@@ -1463,6 +1328,18 @@ export default function ChampionshipForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal: Discussão da Prova / Comentários da Corrida */}
+      <RaceCommentsModal
+        race={selectedRaceForComments}
+        stageOrder={selectedStageForComments?.order}
+        isOpen={isCommentsModalOpen}
+        onClose={() => {
+          setIsCommentsModalOpen(false)
+          setSelectedRaceForComments(null)
+          setSelectedStageForComments(null)
+        }}
+      />
     </div>
   )
 }

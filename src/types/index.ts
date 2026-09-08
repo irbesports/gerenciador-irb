@@ -30,6 +30,19 @@ export interface Season extends RecordModel {
 export type ChampionshipStatus = 'rascunho' | 'ativo' | 'concluido'
 export type ChampionshipType = 'Road' | 'Oval' | 'Dirt Road'
 
+export interface SingleScoringConfig {
+  preset_id?: string
+  rules: { position: number; points: number }[]
+}
+
+export interface MultiClassScoringConfig {
+  class_name: string
+  preset_id?: string
+  rules: { position: number; points: number }[]
+}
+
+export type ChampionshipStagesScoring = SingleScoringConfig | MultiClassScoringConfig[]
+
 export interface Championship extends RecordModel {
   season_id: string
   name: string
@@ -53,6 +66,7 @@ export interface Championship extends RecordModel {
   fixed_setup?: boolean
   visible_to_pilots?: boolean
   multi_class?: boolean
+  stages_scoring?: ChampionshipStagesScoring
   image?: string
   cars?: string[]
   expand?: {
@@ -62,6 +76,78 @@ export interface Championship extends RecordModel {
       }
     }
     cars?: Car[]
+  }
+}
+
+export type StageDurationType = 'Minutos' | 'Voltas'
+export type StageStatus = 'Agendada' | 'Em andamento' | 'Finalizada'
+
+export interface ChampionshipStage extends RecordModel {
+  championship_id: string
+  order: number
+  date?: string
+  duration_type: StageDurationType
+  duration: number
+  points_multiplier?: number
+  track?: string
+  track_layout?: string
+  status: StageStatus
+  expand?: {
+    track?: Track
+    championship_id?: Championship
+  }
+}
+
+export interface StageRace extends RecordModel {
+  stage_id: string
+  order: number
+  duration_type: StageDurationType
+  duration: number
+  start_time?: string
+  weather?: string
+  inverted_positions?: number
+  name?: string
+  expand?: {
+    stage_id?: ChampionshipStage & {
+      expand?: {
+        track?: Track
+        championship_id?: Championship
+      }
+    }
+  }
+}
+
+export interface StageRaceComment extends RecordModel {
+  race_id: string
+  user_id: string
+  message: string
+  expand?: {
+    user_id?: User
+  }
+}
+
+export interface ScoringPresetRule {
+  position: number
+  points: number
+}
+
+export interface ScoringPreset extends RecordModel {
+  name: string
+  description?: string
+  rules: ScoringPresetRule[]
+}
+
+export interface ChampionshipPilot extends RecordModel {
+  championship_id: string
+  pilot?: string
+  name?: string
+  iracing_id?: string
+  number?: number
+  team?: string
+  number_options?: string
+  car_class?: string
+  expand?: {
+    pilot?: Pilot
   }
 }
 

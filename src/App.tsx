@@ -34,6 +34,7 @@ import InfractionsList from '@/pages/InfractionsList'
 import InfractionForm from '@/pages/InfractionForm'
 import ModerationList from '@/pages/ModerationList'
 import ScoringSystemPage from '@/pages/ScoringSystemPage'
+import RaceModerationPage from '@/pages/RaceModerationPage'
 
 import ManufacturersList from '@/pages/ManufacturersList'
 import CarsList from '@/pages/CarsList'
@@ -118,6 +119,14 @@ export default function App() {
             <Route path="/infracoes" element={<InfractionsList />} />
             <Route path="/infracoes/novo" element={<InfractionForm />} />
             <Route path="/moderacao" element={<ModerationList />} />
+            <Route
+              path="/moderacao/corrida/:raceId"
+              element={
+                <ProtectedRoute requireCollaborator>
+                  <RaceModerationPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/pontuacao" element={<ScoringSystemPage />} />
 
             {/* Reference Data */}
