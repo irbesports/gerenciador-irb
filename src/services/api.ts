@@ -476,24 +476,32 @@ export const paymentsService = {
 
 // Moderation Cases (Race Incidents & Protests)
 export const moderationCasesService = {
-  listByRace: async (stageRaceId: string) => {
+  listByRace: async (stageRaceId: string, includeCancelled = false) => {
+    const filter = includeCancelled
+      ? `stage_race_id = "${stageRaceId}"`
+      : `stage_race_id = "${stageRaceId}" && (cancelled = false || cancelled = null)`
     return await pb.collection('moderation_cases').getFullList<ModerationCase>({
-      filter: `stage_race_id = "${stageRaceId}"`,
-      sort: 'lap',
+      filter,
+      sort: 'case_number,lap',
       expand:
         'stage_race_id,stage_race_id.stage_id,stage_race_id.stage_id.track,stage_race_id.stage_id.championship_id,involved_pilots,guilty_pilot_id,author_pilot_id,author_user_id',
     })
   },
-  listByChampionship: async (championshipId: string) => {
+  listByChampionship: async (championshipId: string, includeCancelled = false) => {
+    const filter = includeCancelled
+      ? `championship_id = "${championshipId}"`
+      : `championship_id = "${championshipId}" && (cancelled = false || cancelled = null)`
     return await pb.collection('moderation_cases').getFullList<ModerationCase>({
-      filter: `championship_id = "${championshipId}"`,
+      filter,
       sort: '-created',
       expand:
         'stage_race_id,stage_race_id.stage_id,stage_race_id.stage_id.track,involved_pilots,guilty_pilot_id,author_pilot_id,author_user_id',
     })
   },
-  listAll: async () => {
+  listAll: async (includeCancelled = false) => {
+    const filter = includeCancelled ? '' : 'cancelled = false || cancelled = null'
     return await pb.collection('moderation_cases').getFullList<ModerationCase>({
+      filter: filter || undefined,
       sort: '-created',
       expand:
         'stage_race_id,stage_race_id.stage_id,stage_race_id.stage_id.track,stage_race_id.stage_id.championship_id,involved_pilots,guilty_pilot_id,author_pilot_id,author_user_id',
@@ -566,13 +574,17 @@ export const notificationsService = {
   // Helper to notify pilots involved in a moderation case
   notifyInvolvedPilots: async (params: {
     caseRecord: ModerationCase
-    involvedPilotRecords: Pilot[]
+    involvedPilotRecords:
+      | Pilot[]
+      | { id: string; name?: string; number?: number; user_id?: string }[]
     stageName: string
     trackName: string
     raceName: string
-    lap: number
+    lap: number | string
     openedByType: 'comissarios' | 'protesto_piloto'
     protestingPilotName?: string
+    status?: string
+    penaltyApplied?: string
   }) => {
     const {
       caseRecord,
@@ -583,11 +595,14 @@ export const notificationsService = {
       lap,
       openedByType,
       protestingPilotName,
+      status,
+      penaltyApplied,
     } = params
 
     const targetLink = `/moderacao/caso/${caseRecord.id}`
     const involvedNames = involvedPilotRecords
-      .map((p) => `#${p.number ?? ''} ${p.name}`.trim())
+      .map((p) => `#${p.number ?? ''} ${p.name || ''}`.trim())
+      .filter(Boolean)
       .join(', ')
 
     for (const pilot of involvedPilotRecords) {
@@ -599,12 +614,23 @@ export const notificationsService = {
       let title = ''
       let message = ''
 
+      const codePrefix = caseRecord.code ? `[${caseRecord.code}] ` : ''
+
       if (openedByType === 'protesto_piloto') {
-        title = `Protesto aberto — ${raceName} (Volta ${lap})`
+        title = `${codePrefix}Protesto aberto — ${raceName} (Volta ${lap})`
         message = `Abriram um protesto contra você na ${stageName} da pista ${trackName}, da ${raceName} na volta ${lap}, envolvendo: ${involvedNames}. Notificado por: ${protestingPilotName || 'Piloto'}. Você tem até 24h para dar sua versão do incidente no sistema.`
+      } else if (status === 'Aplicado em corrida') {
+        title = `${codePrefix}Punição aplicada em corrida — ${raceName} (Volta ${lap})`
+        message = `A comissão aplicou penalidade em corrida na ${stageName}, pista ${trackName}, volta ${lap}. Infração: ${caseRecord.infraction_cited || 'Penalidade desportiva'}. ${penaltyApplied ? `Punição: ${penaltyApplied}.` : ''} Você tem 24h para registrar manifestação.`
+      } else if (status === 'Aplicado pós corrida') {
+        title = `${codePrefix}Incidente marcado para pós-corrida — ${raceName} (Volta ${lap})`
+        message = `Seu nome foi citado em incidente na ${stageName}, pista ${trackName}, volta ${lap}, marcado para julgamento pós-corrida. Prazo de 24h para envio da sua versão.`
+      } else if (status === 'Nenhuma ação necessária') {
+        title = `${codePrefix}Incidente analisado (Nenhuma ação) — ${raceName} (Volta ${lap})`
+        message = `O incidente registrado na ${stageName}, pista ${trackName}, volta ${lap} foi considerado lance de corrida. Nenhuma penalidade foi aplicada.`
       } else {
-        title = `Incidente em análise pela comissão — ${raceName} (Volta ${lap})`
-        message = `Seu nome está envolvido em um incidente na ${stageName}, pista ${trackName}, da ${raceName} na volta ${lap}, envolvendo: ${involvedNames}. Notificado por: Comissários de Prova. Acesse os detalhes para adicionar sua resposta à análise.`
+        title = `${codePrefix}Incidente em análise — ${raceName} (Volta ${lap})`
+        message = `Seu nome está envolvido em um incidente na ${stageName}, pista ${trackName}, da ${raceName} na volta ${lap}, envolvendo: ${involvedNames}. Notificado por: Comissários de Prova. Acesse para apresentar sua versão (prazo de 24h).`
       }
 
       try {

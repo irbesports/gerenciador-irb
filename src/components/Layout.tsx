@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Award,
   DollarSign,
+  Scale,
   HelpCircle,
   Settings,
   LogOut,
@@ -56,8 +57,9 @@ export default function Layout() {
     {
       title: 'Gestão',
       items: [
-        { label: 'Moderação', path: '/moderacao', icon: ShieldCheck },
-        { label: 'Infrações', path: '/infracoes', icon: AlertTriangle },
+        { label: 'Central de Provas', path: '/moderacao/central-de-provas', icon: ShieldCheck },
+        { label: 'Casos & Protestos', path: '/moderacao', icon: AlertTriangle },
+        { label: 'Infrações', path: '/infracoes', icon: Scale },
         { label: 'Pontuação', path: '/pontuacao', icon: Award },
       ],
     },

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T14:43:09.614Z",
+  "generatedAt": "2026-09-08T15:47:49.107Z",
   "collections": [
     {
       "name": "users",
@@ -345,6 +345,12 @@
         {
           "name": "regulation_rules",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "short_code",
+          "type": "text",
           "required": false,
           "system": false
         }
@@ -1252,6 +1258,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "case_counter",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX idx_stage_races_stage ON stage_races (stage_id)"]
@@ -1875,12 +1887,55 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "case_number",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "penalty_points",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "penalty_seconds",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "penalty_positions",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "penalty_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cancelled",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_mod_cases_race ON moderation_cases (stage_race_id)",
         "CREATE INDEX idx_mod_cases_champ ON moderation_cases (championship_id)",
-        "CREATE INDEX idx_mod_cases_status ON moderation_cases (status)"
+        "CREATE INDEX idx_mod_cases_status ON moderation_cases (status)",
+        "CREATE INDEX `idx_mod_cases_code` ON `moderation_cases` (code)"
       ]
     },
     {

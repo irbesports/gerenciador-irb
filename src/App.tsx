@@ -36,6 +36,7 @@ import ModerationList from '@/pages/ModerationList'
 import ScoringSystemPage from '@/pages/ScoringSystemPage'
 import RaceModerationPage from '@/pages/RaceModerationPage'
 import ModerationCaseDetail from '@/pages/ModerationCaseDetail'
+import StewardsHubPage from '@/pages/StewardsHubPage'
 
 import ManufacturersList from '@/pages/ManufacturersList'
 import CarsList from '@/pages/CarsList'
@@ -120,6 +121,14 @@ export default function App() {
             <Route path="/infracoes" element={<InfractionsList />} />
             <Route path="/infracoes/novo" element={<InfractionForm />} />
             <Route path="/moderacao" element={<ModerationList />} />
+            <Route
+              path="/moderacao/central-de-provas"
+              element={
+                <ProtectedRoute>
+                  <StewardsHubPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/moderacao/corrida/:raceId"
               element={

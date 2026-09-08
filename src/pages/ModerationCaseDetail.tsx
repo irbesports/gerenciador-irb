@@ -287,6 +287,17 @@ export default function ModerationCaseDetail() {
               </span>
             </div>
 
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-xs text-[#90e0ef] font-bold bg-[#0d2137] px-2.5 py-0.5 rounded border border-[#0077b6]/40">
+                {caseRecord.code || `CASO-#${caseRecord.id.slice(0, 8)}`}
+              </span>
+              {caseRecord.case_number && (
+                <span className="text-[11px] text-gray-400 font-mono">
+                  (Incidente #{caseRecord.case_number})
+                </span>
+              )}
+            </div>
+
             <h1 className="font-racing text-2xl sm:text-3xl font-bold text-white uppercase tracking-wider flex items-center gap-3">
               <span className="w-2.5 h-7 bg-[#E10600] rounded-sm inline-block shadow-[0_0_12px_rgba(225,6,0,0.5)]"></span>
               Incidente na Volta {caseRecord.lap}

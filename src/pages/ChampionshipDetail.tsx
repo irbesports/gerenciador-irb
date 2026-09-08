@@ -28,6 +28,7 @@ import {
   stageRacesService,
   championshipPilotsService,
   raceResultsService,
+  moderationCasesService,
 } from '@/services/api'
 import type {
   Championship,
@@ -41,6 +42,7 @@ import type {
   SingleScoringConfig,
   MultiClassScoringConfig,
   RaceResultRecord,
+  ModerationCase,
 } from '@/types'
 import { IracingImportModal } from '@/components/championship/IracingImportModal'
 import { Button } from '@/components/ui/button'
@@ -67,6 +69,7 @@ export default function ChampionshipDetail() {
   const [infractions, setInfractions] = useState<Infraction[]>([])
   const [raceResults, setRaceResults] = useState<RaceResultRecord[]>([])
   const [scoringPresets, setScoringPresets] = useState<ScoringPreset[]>([])
+  const [moderationCases, setModerationCases] = useState<ModerationCase[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // iRacing Import Modal
@@ -77,16 +80,18 @@ export default function ChampionshipDetail() {
   const loadData = async () => {
     if (!id) return
     try {
-      const [champ, pList, rules, infs, stList, cpList, rResults, presets] = await Promise.all([
-        championshipsService.getOne(id),
-        pilotsService.list(),
-        scoringRulesService.listByChampionship(id),
-        infractionsService.list(),
-        championshipStagesService.listByChampionship(id),
-        championshipPilotsService.listByChampionship(id),
-        raceResultsService.listByChampionship(id, true),
-        scoringPresetsService.list(),
-      ])
+      const [champ, pList, rules, infs, stList, cpList, rResults, presets, modCases] =
+        await Promise.all([
+          championshipsService.getOne(id),
+          pilotsService.list(),
+          scoringRulesService.listByChampionship(id),
+          infractionsService.list(),
+          championshipStagesService.listByChampionship(id),
+          championshipPilotsService.listByChampionship(id),
+          raceResultsService.listByChampionship(id, true),
+          scoringPresetsService.list(),
+          moderationCasesService.listByChampionship(id, false).catch(() => []),
+        ])
       setChampionship(champ)
       setPilots(pList)
       setScoringRules(rules)
@@ -95,6 +100,7 @@ export default function ChampionshipDetail() {
       setChampPilots(cpList)
       setRaceResults(rResults)
       setScoringPresets(presets)
+      setModerationCases(modCases)
 
       // Load all races for all stages
       const allRaces: StageRace[] = []
@@ -144,8 +150,27 @@ export default function ChampionshipDetail() {
     }
   }
 
-  // Calculation of standings with real imported race_results + drop scores (descartes)
-  const { standings, availableClasses } = React.useMemo(() => {
+  // Map penalty points from moderation cases to pilots
+  const pilotPenaltiesMap = React.useMemo(() => {
+    const map = new Map<string, number>()
+    for (const c of moderationCases) {
+      if (c.cancelled) continue
+      // Active applied penalties with points
+      if (
+        (c.status === 'Aplicado em corrida' || c.status === 'Aplicado pós corrida') &&
+        c.guilty_pilot_id &&
+        c.penalty_points &&
+        c.penalty_points > 0
+      ) {
+        const current = map.get(c.guilty_pilot_id) || 0
+        map.set(c.guilty_pilot_id, current + c.penalty_points)
+      }
+    }
+    return map
+  }, [moderationCases])
+
+  // Calculation of standings with real imported race_results + drop scores (descartes) + moderation penalties
+  const { standings, teamStandings, availableClasses } = React.useMemo(() => {
     // Collect all available classes from raceResults or champPilots
     const classesSet = new Set<string>()
     raceResults.forEach((rr) => {
@@ -256,14 +281,23 @@ export default function ChampionshipDetail() {
       const sortedScores = [...raceScores].sort((a, b) => a - b)
       const discardedScores = sortedScores.slice(0, dropScoresCount)
       const retainedScores = sortedScores.slice(dropScoresCount)
-      const totalPoints = retainedScores.reduce((sum, val) => sum + val, 0)
+      const retainedSum = retainedScores.reduce((sum, val) => sum + val, 0)
       const grossPoints = raceScores.reduce((sum, val) => sum + val, 0)
+
+      // Deduct penalties applied by Stewards
+      const pilotPenalty =
+        (p.pilotRecordId ? pilotPenaltiesMap.get(p.pilotRecordId) : 0) ||
+        pilotPenaltiesMap.get(p.id) ||
+        0
+
+      const totalPoints = Math.max(0, retainedSum - pilotPenalty)
 
       return {
         pilot: p,
         totalPoints,
         grossPoints,
         discardedPoints: discardedScores.reduce((s, v) => s + v, 0),
+        penaltyPoints: pilotPenalty,
         raceScores,
         wins,
         podiums,
@@ -279,8 +313,48 @@ export default function ChampionshipDetail() {
       return b.podiums - a.podiums
     })
 
-    return { standings: list, availableClasses }
-  }, [champPilots, pilots, championship, raceResults, selectedClassTab])
+    // Team Standings calculation (aggregating drivers points and steward penalties per team)
+    const teamsMap = new Map<
+      string,
+      {
+        name: string
+        totalPoints: number
+        grossPoints: number
+        penaltyPoints: number
+        wins: number
+        podiums: number
+        pilotsCount: number
+      }
+    >()
+
+    list.forEach((entry) => {
+      const teamName = entry.pilot.team_name?.trim() || 'Independente'
+      const existing = teamsMap.get(teamName) || {
+        name: teamName,
+        totalPoints: 0,
+        grossPoints: 0,
+        penaltyPoints: 0,
+        wins: 0,
+        podiums: 0,
+        pilotsCount: 0,
+      }
+      existing.totalPoints += entry.totalPoints
+      existing.grossPoints += entry.grossPoints
+      existing.penaltyPoints += entry.penaltyPoints
+      existing.wins += entry.wins
+      existing.podiums += entry.podiums
+      existing.pilotsCount += 1
+      teamsMap.set(teamName, existing)
+    })
+
+    const teamStandings = Array.from(teamsMap.values()).sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
+      if (b.wins !== a.wins) return b.wins - a.wins
+      return b.podiums - a.podiums
+    })
+
+    return { standings: list, teamStandings, availableClasses }
+  }, [champPilots, pilots, championship, raceResults, selectedClassTab, pilotPenaltiesMap])
 
   if (isLoading || !championship) {
     return (
@@ -371,7 +445,13 @@ export default function ChampionshipDetail() {
             value="standings"
             className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold"
           >
-            Tabela de Classificação
+            Classificação Pilotos
+          </TabsTrigger>
+          <TabsTrigger
+            value="teams"
+            className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold"
+          >
+            Classificação Equipes
           </TabsTrigger>
           <TabsTrigger
             value="races"
@@ -475,12 +555,11 @@ export default function ChampionshipDetail() {
                     <th className="py-3 px-4 text-center">Corridas</th>
                     <th className="py-3 px-4 text-center">Vitórias</th>
                     <th className="py-3 px-4 text-center">Pódios</th>
+                    <th className="py-3 px-4 text-right text-gray-400">Pontos Brutos</th>
                     {championship.drop_scores ? (
-                      <>
-                        <th className="py-3 px-4 text-right text-gray-400">Pontos Brutos</th>
-                        <th className="py-3 px-4 text-right text-amber-700">Descartados</th>
-                      </>
+                      <th className="py-3 px-4 text-right text-amber-700">Descartados</th>
                     ) : null}
+                    <th className="py-3 px-4 text-right text-red-600">Punições</th>
                     <th className="py-3 px-4 text-right font-bold text-gray-900">Total Líquido</th>
                   </tr>
                 </thead>
@@ -557,19 +636,99 @@ export default function ChampionshipDetail() {
                           {row.podiums}
                         </td>
 
+                        <td className="py-3 px-4 text-right font-mono text-gray-400">
+                          {row.grossPoints} pts
+                        </td>
                         {championship.drop_scores ? (
-                          <>
-                            <td className="py-3 px-4 text-right font-mono text-gray-400">
-                              {row.grossPoints} pts
-                            </td>
-                            <td className="py-3 px-4 text-right font-mono text-amber-700">
-                              -{row.discardedPoints} pts
-                            </td>
-                          </>
+                          <td className="py-3 px-4 text-right font-mono text-amber-700">
+                            -{row.discardedPoints} pts
+                          </td>
                         ) : null}
-
+                        <td className="py-3 px-4 text-right font-mono text-red-600 font-bold">
+                          {row.penaltyPoints > 0 ? `-${row.penaltyPoints} pts` : '-'}
+                        </td>
                         <td className="py-3 px-4 text-right font-racing text-base font-bold text-[#E10600] tabular-nums">
                           {row.totalPoints} pts
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Tab: Classificação por Equipes */}
+        <TabsContent value="teams" className="space-y-4">
+          <Card className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="p-4 bg-gray-50/70 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-[#E10600]" />
+                <h3 className="font-racing text-sm font-bold text-[#1E1E2F] uppercase">
+                  Classificação Oficial por Equipes
+                </h3>
+              </div>
+              <span className="text-[11px] text-gray-500">
+                Soma da pontuação líquida e punições atribuídas aos pilotos de cada equipe
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50/50 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="py-3 px-4 w-16 text-center">Pos</th>
+                    <th className="py-3 px-4">Equipe</th>
+                    <th className="py-3 px-4 text-center">Pilotos</th>
+                    <th className="py-3 px-4 text-center">Vitórias</th>
+                    <th className="py-3 px-4 text-center">Pódios</th>
+                    <th className="py-3 px-4 text-right text-gray-400">Pontos Brutos</th>
+                    <th className="py-3 px-4 text-right text-red-600">Punições</th>
+                    <th className="py-3 px-4 text-right font-bold text-gray-900">Total Líquido</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-gray-700">
+                  {teamStandings.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-gray-500">
+                        Nenhuma equipe registrada no campeonato.
+                      </td>
+                    </tr>
+                  ) : (
+                    teamStandings.map((team, idx) => (
+                      <tr key={team.name} className="hover:bg-red-50/30 transition-colors">
+                        <td className="py-3 px-4 text-center">
+                          <span
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-md font-racing font-bold text-xs ${
+                              idx === 0
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                : idx === 1
+                                  ? 'bg-slate-200 text-slate-800'
+                                  : idx === 2
+                                    ? 'bg-amber-800/20 text-amber-900'
+                                    : 'text-gray-500'
+                            }`}
+                          >
+                            {idx + 1}º
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-bold text-gray-900">{team.name}</td>
+                        <td className="py-3 px-4 text-center font-mono font-medium">
+                          {team.pilotsCount}
+                        </td>
+                        <td className="py-3 px-4 text-center font-mono font-medium">{team.wins}</td>
+                        <td className="py-3 px-4 text-center font-mono font-medium">
+                          {team.podiums}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-gray-400">
+                          {team.grossPoints} pts
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-red-600 font-bold">
+                          {team.penaltyPoints > 0 ? `-${team.penaltyPoints} pts` : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right font-racing text-base font-bold text-[#E10600] tabular-nums">
+                          {team.totalPoints} pts
                         </td>
                       </tr>
                     ))

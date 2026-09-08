@@ -72,6 +72,7 @@ export interface Championship extends RecordModel {
   regulation_text?: string
   regulation_file?: string
   regulation_rules?: string[] | { code?: string; title: string; description?: string }[]
+  short_code?: string
   expand?: {
     season_id?: Season & {
       expand?: {
@@ -110,6 +111,7 @@ export interface StageRace extends RecordModel {
   weather?: string
   inverted_positions?: number
   name?: string
+  case_counter?: number
   expand?: {
     stage_id?: ChampionshipStage & {
       expand?: {
@@ -370,7 +372,9 @@ export type ModerationCaseOpenedByType = 'comissarios' | 'protesto_piloto'
 export interface ModerationCase extends RecordModel {
   stage_race_id: string
   championship_id: string
-  lap: number
+  code?: string
+  case_number?: number
+  lap: number | string
   involved_pilots?: string[]
   guilty_pilot_id?: string
   opened_by_type: ModerationCaseOpenedByType
@@ -379,6 +383,11 @@ export interface ModerationCase extends RecordModel {
   status: ModerationCaseStatus
   infraction_cited?: string
   penalty_applied?: string
+  penalty_points?: number
+  penalty_seconds?: number
+  penalty_positions?: number
+  penalty_type?: string
+  cancelled?: boolean
   description?: string
   deadline?: string
   expand?: {

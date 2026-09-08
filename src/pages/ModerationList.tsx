@@ -307,6 +307,7 @@ export default function ModerationList() {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/70 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="py-3 px-4">Código</th>
                       <th className="py-3 px-4">Volta</th>
                       <th className="py-3 px-4">Campeonato / Etapa</th>
                       <th className="py-3 px-4">Notificado Por</th>
@@ -334,6 +335,9 @@ export default function ModerationList() {
                           className="hover:bg-red-50/20 cursor-pointer"
                           onClick={() => navigate(`/moderacao/caso/${c.id}`)}
                         >
+                          <td className="py-3.5 px-4 font-mono text-[11px] text-[#E10600] font-bold">
+                            {c.code || `CASO-#${c.id.slice(0, 6)}`}
+                          </td>
                           <td className="py-3.5 px-4 font-racing font-bold text-gray-900">
                             Volta {c.lap}
                           </td>
