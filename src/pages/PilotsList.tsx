@@ -40,6 +40,7 @@ export default function PilotsList() {
   const [editingPilot, setEditingPilot] = useState<Pilot | null>(null)
   const [pilotName, setPilotName] = useState('')
   const [pilotNumber, setPilotNumber] = useState<number | ''>('')
+  const [pilotIracingId, setPilotIracingId] = useState('')
   const [teamName, setTeamName] = useState('')
   const [pilotStatus, setPilotStatus] = useState<'ativo' | 'inativo'>('ativo')
   const [isSaving, setIsSaving] = useState(false)
@@ -76,6 +77,7 @@ export default function PilotsList() {
     setEditingPilot(null)
     setPilotName('')
     setPilotNumber('')
+    setPilotIracingId('')
     setTeamName('')
     setPilotStatus('ativo')
     setIsModalOpen(true)
@@ -86,6 +88,7 @@ export default function PilotsList() {
     setEditingPilot(p)
     setPilotName(p.name)
     setPilotNumber(p.number ?? '')
+    setPilotIracingId(p.iracing_id || '')
     setTeamName(p.team_name || '')
     setPilotStatus(p.status || 'ativo')
     setIsModalOpen(true)
@@ -108,12 +111,27 @@ export default function PilotsList() {
     e.preventDefault()
     if (!pilotName.trim()) return
 
+    const irIdTrim = pilotIracingId.trim()
+    if (irIdTrim) {
+      // Check duplicate iRacing ID
+      const existing = await pilotsService.getByIracingId(irIdTrim)
+      if (existing && (!editingPilot || existing.id !== editingPilot.id)) {
+        toast({
+          title: 'ID iRacing já cadastrado',
+          description: `O ID ${irIdTrim} já pertence ao piloto "${existing.name}". O ID iRacing deve ser único.`,
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
     try {
       setIsSaving(true)
       const payload: any = {
         name: pilotName,
         team_name: teamName,
         status: pilotStatus,
+        iracing_id: irIdTrim || undefined,
       }
       if (pilotNumber !== '') payload.number = Number(pilotNumber)
 
@@ -210,8 +228,13 @@ export default function PilotsList() {
                         <h3 className="font-racing text-base font-bold text-gray-900 group-hover:text-[#E10600] transition-colors">
                           {p.name}
                         </h3>
-                        <p className="text-xs text-gray-500">
-                          {p.team_name || 'Piloto Independente'}
+                        <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                          <span>{p.team_name || 'Piloto Independente'}</span>
+                          {p.iracing_id && (
+                            <span className="text-[10px] text-gray-400 font-mono">
+                              [ID:{p.iracing_id}]
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -343,17 +366,38 @@ export default function PilotsList() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="team-name" className="text-xs font-semibold uppercase text-gray-700">
-                Nome da Equipe / Construtor
-              </Label>
-              <Input
-                id="team-name"
-                placeholder="Ex: Scuderia Apex"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                className="bg-[#F5F5F7] text-sm"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="p-iracing"
+                  className="text-xs font-semibold uppercase text-gray-700"
+                >
+                  ID iRacing (Único)
+                </Label>
+                <Input
+                  id="p-iracing"
+                  placeholder="Ex: 569362"
+                  value={pilotIracingId}
+                  onChange={(e) => setPilotIracingId(e.target.value)}
+                  className="bg-[#F5F5F7] text-sm font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="team-name"
+                  className="text-xs font-semibold uppercase text-gray-700"
+                >
+                  Nome da Equipe
+                </Label>
+                <Input
+                  id="team-name"
+                  placeholder="Ex: Scuderia Apex"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  className="bg-[#F5F5F7] text-sm"
+                />
+              </div>
             </div>
 
             <DialogFooter className="pt-4">

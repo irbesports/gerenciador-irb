@@ -179,8 +179,79 @@ export interface Pilot extends RecordModel {
   team_name?: string
   avatar?: string
   status?: PilotStatus
+  iracing_id?: string
+  country_code?: string
   expand?: {
     user_id?: User
+  }
+}
+
+export type ResultImportStatus = 'ativo' | 'substituido' | 'excluido'
+
+export interface RaceImport extends RecordModel {
+  subsession_id: number
+  session_name?: string
+  file_name?: string
+  track_name?: string
+  track_config?: string
+  simulated_start_time?: string
+  championship_id: string
+  stage_race_id: string
+  imported_by?: string
+  status: ResultImportStatus
+  raw_json?: any
+  expand?: {
+    championship_id?: Championship
+    stage_race_id?: StageRace
+    imported_by?: User
+  }
+}
+
+export interface RaceResultRecord extends RecordModel {
+  race_import_id: string
+  stage_race_id: string
+  championship_id: string
+  pilot_id?: string
+  cust_id: number
+  display_name: string
+  finish_position: number
+  finish_position_in_class: number
+  starting_position?: number
+  starting_position_in_class?: number
+  car_id?: number
+  car_name?: string
+  car_class_id?: number
+  car_class_name?: string
+  car_class_short_name?: string
+  best_lap_num?: number
+  best_lap_time?: number
+  best_lap_time_str?: string
+  best_qual_lap_num?: number
+  best_qual_lap_time?: number
+  best_qual_lap_time_str?: string
+  average_lap?: number
+  average_lap_str?: string
+  laps_complete?: number
+  laps_lead?: number
+  incidents?: number
+  points?: number
+  bonus_points?: number
+  total_points?: number
+  is_pole?: boolean
+  is_fastest_lap?: boolean
+  is_winner?: boolean
+  is_podium?: boolean
+  weight_penalty_kg?: number
+  drop_race?: boolean
+  country_code?: string
+  car_number?: string
+  reason_out?: string
+  status: ResultImportStatus
+  expand?: {
+    pilot_id?: Pilot
+    stage_race_id?: StageRace
+    championship_id?: Championship
+    race_import_id?: RaceImport
   }
 }
 

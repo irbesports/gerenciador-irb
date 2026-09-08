@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T13:37:53.634Z",
+  "generatedAt": "2026-09-08T14:13:20.106Z",
   "collections": [
     {
       "name": "users",
@@ -450,9 +450,24 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "iracing_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "country_code",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_pilots_user_id ON pilots (user_id)"]
+      "indexes": [
+        "CREATE INDEX idx_pilots_user_id ON pilots (user_id)",
+        "CREATE UNIQUE INDEX `idx_pilots_iracing_id` ON `pilots` (iracing_id) WHERE iracing_id != \"\" AND iracing_id IS NOT NULL"
+      ]
     },
     {
       "name": "infractions",
@@ -1350,6 +1365,381 @@
       "indexes": [
         "CREATE INDEX idx_champ_pilots_champ ON championship_pilots (championship_id)",
         "CREATE INDEX idx_champ_pilots_pilot ON championship_pilots (pilot)"
+      ]
+    },
+    {
+      "name": "race_imports",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "subsession_id",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "session_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "file_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "track_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "track_config",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "simulated_start_time",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "championship_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "championships"
+        },
+        {
+          "name": "stage_race_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stage_races"
+        },
+        {
+          "name": "imported_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ativo", "substituido", "excluido"]
+        },
+        {
+          "name": "raw_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_race_imports_race ON race_imports (stage_race_id)",
+        "CREATE INDEX idx_race_imports_champ ON race_imports (championship_id)",
+        "CREATE INDEX idx_race_imports_subsession ON race_imports (subsession_id)"
+      ]
+    },
+    {
+      "name": "race_results",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "race_import_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "race_imports"
+        },
+        {
+          "name": "stage_race_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stage_races"
+        },
+        {
+          "name": "championship_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "championships"
+        },
+        {
+          "name": "pilot_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "pilots"
+        },
+        {
+          "name": "cust_id",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "display_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "finish_position",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "finish_position_in_class",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "starting_position",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "starting_position_in_class",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "car_id",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "car_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "car_class_id",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "car_class_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "car_class_short_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "best_lap_num",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "best_lap_time",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "best_lap_time_str",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "best_qual_lap_num",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "best_qual_lap_time",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "best_qual_lap_time_str",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "average_lap",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "average_lap_str",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "laps_complete",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "laps_lead",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "incidents",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "points",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bonus_points",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_points",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_pole",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_fastest_lap",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_winner",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_podium",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight_penalty_kg",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "drop_race",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "country_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "car_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reason_out",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ativo", "substituido", "excluido"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_race_results_race ON race_results (stage_race_id)",
+        "CREATE INDEX idx_race_results_champ ON race_results (championship_id)",
+        "CREATE INDEX idx_race_results_pilot ON race_results (pilot_id)",
+        "CREATE INDEX idx_race_results_cust_id ON race_results (cust_id)",
+        "CREATE INDEX idx_race_results_status ON race_results (status)"
       ]
     }
   ]

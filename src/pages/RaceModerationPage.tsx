@@ -13,8 +13,8 @@ import {
   AlertTriangle,
   Award,
 } from 'lucide-react'
-import { stageRacesService, stageRaceCommentsService } from '@/services/api'
-import type { StageRace, StageRaceComment } from '@/types'
+import { stageRacesService, stageRaceCommentsService, raceResultsService } from '@/services/api'
+import type { StageRace, StageRaceComment, RaceResultRecord } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +30,7 @@ export default function RaceModerationPage() {
 
   const [race, setRace] = useState<StageRace | null>(null)
   const [comments, setComments] = useState<StageRaceComment[]>([])
+  const [raceResults, setRaceResults] = useState<RaceResultRecord[]>([])
   const [newComment, setNewComment] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
@@ -38,10 +39,14 @@ export default function RaceModerationPage() {
     if (!raceId) return
     try {
       setIsLoading(true)
-      const r = await stageRacesService.getOne(raceId)
+      const [r, cList, results] = await Promise.all([
+        stageRacesService.getOne(raceId),
+        stageRaceCommentsService.listByRace(raceId),
+        raceResultsService.listByRace(raceId, true),
+      ])
       setRace(r)
-      const cList = await stageRaceCommentsService.listByRace(raceId)
       setComments(cList)
+      setRaceResults(results)
     } catch (err) {
       console.error(err)
       toast({
@@ -194,21 +199,114 @@ export default function RaceModerationPage() {
         </div>
       </div>
 
-      {/* Placeholder functional note */}
-      <Card className="p-5 bg-gradient-to-r from-amber-950/30 to-[#161622] border border-amber-500/30 rounded-xl flex items-start gap-3 text-amber-200">
-        <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <h3 className="font-racing text-sm font-bold uppercase tracking-wider text-amber-300">
-            Painel da Prova — Moderação de Incidentes
-          </h3>
-          <p className="text-xs text-gray-300 leading-relaxed">
-            Esta é a página individual de moderação da{' '}
-            <strong>{race.name || `Corrida ${race.order}`}</strong> (Etapa {stage?.order ?? 1}). O
-            formulário de incidentes, telemetria de protestos e penalizações de tempo detalhadas
-            virão no próximo módulo do regulamento desportivo. Use o canal de discussão abaixo para
-            notas entre os comissários.
-          </p>
+      {/* Incidentes Importados do iRacing */}
+      <Card className="p-6 bg-[#161622] border border-white/10 rounded-xl shadow-lg space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-[#E10600]" />
+            <h2 className="font-racing text-base font-bold text-white uppercase tracking-wider">
+              Registro Oficial de Incidentes iRacing ({raceResults.length} Pilotos)
+            </h2>
+          </div>
+          <span className="text-[11px] text-gray-400">
+            Dados de telemetria base para julgamentos e abertura de protestos
+          </span>
         </div>
+
+        {raceResults.length === 0 ? (
+          <div className="p-8 text-center bg-[#1F1F30]/40 rounded-xl border border-white/5 text-gray-400 text-xs space-y-2">
+            <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
+            <p className="font-medium text-white">
+              Nenhum resultado importado para esta corrida ainda.
+            </p>
+            <p className="text-gray-500">
+              Faça o upload do JSON do iRacing no detalhe da etapa para carregar os incidentes e
+              voltas de cada piloto.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-white/5 bg-[#1F1F30]/30">
+            <table className="w-full text-left text-xs text-gray-300">
+              <thead>
+                <tr className="border-b border-white/10 bg-[#14141F] text-[10px] font-racing text-gray-400 uppercase tracking-wider">
+                  <th className="py-2.5 px-3 w-12 text-center">Pos</th>
+                  <th className="py-2.5 px-3">Piloto</th>
+                  <th className="py-2.5 px-3">ID iRacing</th>
+                  <th className="py-2.5 px-3">Carro</th>
+                  <th className="py-2.5 px-3 text-center">Voltas Concluídas</th>
+                  <th className="py-2.5 px-3 text-center">Incidentes (x)</th>
+                  <th className="py-2.5 px-3 text-center">Status / Saída</th>
+                  <th className="py-2.5 px-3 text-right">Ação Rápida</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {raceResults.map((driver) => {
+                  const inc = driver.incidents ?? 0
+                  return (
+                    <tr key={driver.id} className="hover:bg-white/5 transition-colors">
+                      <td className="py-2.5 px-3 text-center font-racing font-bold text-white">
+                        {driver.finish_position}º
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-white">
+                        {driver.display_name}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-gray-400 text-[11px]">
+                        {driver.cust_id}
+                      </td>
+                      <td className="py-2.5 px-3 text-gray-300">{driver.car_name || '-'}</td>
+                      <td className="py-2.5 px-3 text-center font-mono">
+                        {driver.laps_complete ?? 0}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono">
+                        <span
+                          className={`px-2 py-0.5 rounded font-bold text-xs ${
+                            inc >= 10
+                              ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                              : inc >= 4
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                : 'bg-emerald-500/15 text-emerald-400'
+                          }`}
+                        >
+                          {inc}x
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] border-white/10 text-gray-300 capitalize"
+                        >
+                          {driver.reason_out || (inc >= 17 ? 'Desqualificado (17x)' : 'Completou')}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setNewComment((prev) =>
+                              prev
+                                ? `${prev}\nInvestigar piloto ${driver.display_name} (#${driver.car_number || driver.cust_id}) — ${inc} incidentes reportados no log do iRacing.`
+                                : `Investigar piloto ${driver.display_name} (#${driver.car_number || driver.cust_id}) — ${inc} incidentes reportados no log do iRacing.`,
+                            )
+                            toast({
+                              title: 'Piloto anotado',
+                              description:
+                                'Apontamento pré-preenchido no quadro de notas dos comissários.',
+                            })
+                          }}
+                          className="text-[10px] font-racing uppercase tracking-wider bg-transparent border-white/15 text-gray-300 hover:text-white h-7 px-2.5"
+                        >
+                          Anotar Caso
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       {/* Discussion Thread */}

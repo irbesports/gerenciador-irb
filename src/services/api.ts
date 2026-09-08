@@ -20,6 +20,8 @@ import type {
   StageRaceComment,
   ScoringPreset,
   ChampionshipPilot,
+  RaceImport,
+  RaceResultRecord,
 } from '@/types'
 
 // Helper to get file URL
@@ -281,6 +283,19 @@ export const pilotsService = {
       expand: 'user_id',
     })
   },
+  getByIracingId: async (iracingId: string | number) => {
+    const idStr = String(iracingId).trim()
+    if (!idStr) return null
+    try {
+      const records = await pb.collection('pilots').getFullList<Pilot>({
+        filter: `iracing_id = "${idStr}"`,
+        limit: 1,
+      })
+      return records[0] || null
+    } catch {
+      return null
+    }
+  },
   create: async (data: any) => {
     return await pb.collection('pilots').create<Pilot>(data)
   },
@@ -289,6 +304,90 @@ export const pilotsService = {
   },
   delete: async (id: string) => {
     return await pb.collection('pilots').delete(id)
+  },
+}
+
+// Race Imports & Results
+export const raceImportsService = {
+  listByStageRace: async (stageRaceId: string) => {
+    return await pb.collection('race_imports').getFullList<RaceImport>({
+      filter: `stage_race_id = "${stageRaceId}"`,
+      sort: '-created',
+      expand: 'imported_by,stage_race_id',
+    })
+  },
+  listByChampionship: async (championshipId: string) => {
+    return await pb.collection('race_imports').getFullList<RaceImport>({
+      filter: `championship_id = "${championshipId}"`,
+      sort: '-created',
+      expand: 'imported_by,stage_race_id',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('race_imports').getOne<RaceImport>(id, {
+      expand: 'imported_by,stage_race_id',
+    })
+  },
+  create: async (data: Partial<RaceImport>) => {
+    return await pb.collection('race_imports').create<RaceImport>(data)
+  },
+  update: async (id: string, data: Partial<RaceImport>) => {
+    return await pb.collection('race_imports').update<RaceImport>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('race_imports').delete(id)
+  },
+}
+
+export const raceResultsService = {
+  listByRace: async (stageRaceId: string, onlyActive = true) => {
+    const filter = onlyActive
+      ? `stage_race_id = "${stageRaceId}" && status = "ativo"`
+      : `stage_race_id = "${stageRaceId}"`
+    return await pb.collection('race_results').getFullList<RaceResultRecord>({
+      filter,
+      sort: 'finish_position',
+      expand: 'pilot_id,stage_race_id,race_import_id',
+    })
+  },
+  listByChampionship: async (championshipId: string, onlyActive = true) => {
+    const filter = onlyActive
+      ? `championship_id = "${championshipId}" && status = "ativo"`
+      : `championship_id = "${championshipId}"`
+    return await pb.collection('race_results').getFullList<RaceResultRecord>({
+      filter,
+      sort: 'finish_position',
+      expand: 'pilot_id,stage_race_id,race_import_id',
+    })
+  },
+  listByPilot: async (pilotId: string, onlyActive = true) => {
+    const filter = onlyActive
+      ? `pilot_id = "${pilotId}" && status = "ativo"`
+      : `pilot_id = "${pilotId}"`
+    return await pb.collection('race_results').getFullList<RaceResultRecord>({
+      filter,
+      sort: '-created',
+      expand:
+        'stage_race_id.stage_id.championship_id.season_id.year_id,championship_id.season_id.year_id,pilot_id',
+    })
+  },
+  listByCustId: async (custId: number, onlyActive = true) => {
+    const filter = onlyActive ? `cust_id = ${custId} && status = "ativo"` : `cust_id = ${custId}`
+    return await pb.collection('race_results').getFullList<RaceResultRecord>({
+      filter,
+      sort: '-created',
+      expand:
+        'stage_race_id.stage_id.championship_id.season_id.year_id,championship_id.season_id.year_id,pilot_id',
+    })
+  },
+  create: async (data: Partial<RaceResultRecord>) => {
+    return await pb.collection('race_results').create<RaceResultRecord>(data)
+  },
+  update: async (id: string, data: Partial<RaceResultRecord>) => {
+    return await pb.collection('race_results').update<RaceResultRecord>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('race_results').delete(id)
   },
 }
 

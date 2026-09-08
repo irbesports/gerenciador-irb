@@ -12,28 +12,35 @@ import {
   Clock,
   MapPin,
   ShieldAlert,
+  UploadCloud,
+  Layers,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   championshipsService,
   pilotsService,
   scoringRulesService,
+  scoringPresetsService,
   infractionsService,
   championshipStagesService,
   stageRacesService,
   championshipPilotsService,
+  raceResultsService,
 } from '@/services/api'
 import type {
   Championship,
   Pilot,
   ScoringRule,
+  ScoringPreset,
   Infraction,
   ChampionshipStage,
   StageRace,
   ChampionshipPilot,
   SingleScoringConfig,
   MultiClassScoringConfig,
+  RaceResultRecord,
 } from '@/types'
+import { IracingImportModal } from '@/components/championship/IracingImportModal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -55,18 +62,27 @@ export default function ChampionshipDetail() {
   const [stageRaces, setStageRaces] = useState<StageRace[]>([])
   const [champPilots, setChampPilots] = useState<ChampionshipPilot[]>([])
   const [infractions, setInfractions] = useState<Infraction[]>([])
+  const [raceResults, setRaceResults] = useState<RaceResultRecord[]>([])
+  const [scoringPresets, setScoringPresets] = useState<ScoringPreset[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // iRacing Import Modal
+  const [isIracingModalOpen, setIsIracingModalOpen] = useState(false)
+  const [stageForImport, setStageForImport] = useState<ChampionshipStage | null>(null)
+  const [selectedClassTab, setSelectedClassTab] = useState<string>('geral')
 
   const loadData = async () => {
     if (!id) return
     try {
-      const [champ, pList, rules, infs, stList, cpList] = await Promise.all([
+      const [champ, pList, rules, infs, stList, cpList, rResults, presets] = await Promise.all([
         championshipsService.getOne(id),
         pilotsService.list(),
         scoringRulesService.listByChampionship(id),
         infractionsService.list(),
         championshipStagesService.listByChampionship(id),
         championshipPilotsService.listByChampionship(id),
+        raceResultsService.listByChampionship(id, true),
+        scoringPresetsService.list(),
       ])
       setChampionship(champ)
       setPilots(pList)
@@ -74,6 +90,8 @@ export default function ChampionshipDetail() {
       setInfractions(infs.filter((inf) => inf.championship_id === id))
       setStages(stList)
       setChampPilots(cpList)
+      setRaceResults(rResults)
+      setScoringPresets(presets)
 
       // Load all races for all stages
       const allRaces: StageRace[] = []
@@ -123,97 +141,143 @@ export default function ChampionshipDetail() {
     }
   }
 
-  // Calculation of standings with drop scores (descartes) and points per race
-  const standings = React.useMemo(() => {
-    // Determine participant list: championship_pilots or general pilots
-    const effectiveParticipants =
-      champPilots.length > 0
-        ? champPilots.map((cp) => ({
-            id: cp.id,
-            name: cp.name || cp.expand?.pilot?.name || 'Piloto',
-            team_name: cp.team || cp.expand?.pilot?.team_name || 'Equipe',
-            number: cp.number ?? cp.expand?.pilot?.number,
-            avatar: cp.expand?.pilot?.avatar,
-            pilotRecordId: cp.pilot,
-            car_class: cp.car_class,
-          }))
-        : pilots.map((p) => ({
-            id: p.id,
-            name: p.name,
-            team_name: p.team_name,
-            number: p.number,
-            avatar: p.avatar,
-            pilotRecordId: p.id,
-            car_class: undefined,
-          }))
+  // Calculation of standings with real imported race_results + drop scores (descartes)
+  const { standings, availableClasses } = React.useMemo(() => {
+    // Collect all available classes from raceResults or champPilots
+    const classesSet = new Set<string>()
+    raceResults.forEach((rr) => {
+      if (rr.car_class_name) classesSet.add(rr.car_class_name)
+    })
+    champPilots.forEach((cp) => {
+      if (cp.car_class) classesSet.add(cp.car_class)
+    })
+    const availableClasses = Array.from(classesSet)
 
-    // Completed or active races
-    const completedStages = stages.filter((s) => s.status === 'Finalizada')
-    const completedStagesCount = Math.max(1, completedStages.length)
-    const dropScoresCount = championship?.drop_scores || 0
+    // Determine participant list: championship_pilots, race results or general pilots
+    const participantMap = new Map<
+      string,
+      {
+        id: string
+        name: string
+        team_name?: string
+        number?: number
+        avatar?: string
+        pilotRecordId?: string
+        iracing_id?: string
+        car_class?: string
+      }
+    >()
 
-    // Extract scoring rules map
-    let pointsTable: { [position: number]: number } = {}
-    if (championship?.stages_scoring) {
-      if (
-        !Array.isArray(championship.stages_scoring) &&
-        (championship.stages_scoring as SingleScoringConfig).rules
-      ) {
-        ;(championship.stages_scoring as SingleScoringConfig).rules.forEach((r) => {
-          pointsTable[r.position] = r.points
-        })
-      } else if (
-        Array.isArray(championship.stages_scoring) &&
-        championship.stages_scoring.length > 0
-      ) {
-        // Multi-class default rules from first class
-        championship.stages_scoring[0].rules.forEach((r) => {
-          pointsTable[r.position] = r.points
+    champPilots.forEach((cp) => {
+      const key = cp.iracing_id ? `ir_${cp.iracing_id}` : cp.pilot || cp.id
+      participantMap.set(key, {
+        id: cp.id,
+        name: cp.name || cp.expand?.pilot?.name || 'Piloto',
+        team_name: cp.team || cp.expand?.pilot?.team_name || 'Equipe',
+        number: cp.number ?? cp.expand?.pilot?.number,
+        avatar: cp.expand?.pilot?.avatar,
+        pilotRecordId: cp.pilot,
+        iracing_id: cp.iracing_id,
+        car_class: cp.car_class,
+      })
+    })
+
+    // Add any driver with imported race results who might not be in champPilots
+    raceResults.forEach((rr) => {
+      const key = rr.cust_id ? `ir_${rr.cust_id}` : rr.pilot_id || rr.id
+      if (!participantMap.has(key)) {
+        participantMap.set(key, {
+          id: rr.id,
+          name: rr.display_name,
+          team_name: rr.expand?.pilot_id?.team_name || 'iRacing Driver',
+          number: rr.car_number ? Number(rr.car_number) : undefined,
+          avatar: rr.expand?.pilot_id?.avatar,
+          pilotRecordId: rr.pilot_id,
+          iracing_id: String(rr.cust_id),
+          car_class: rr.car_class_name,
         })
       }
-    }
-    if (Object.keys(pointsTable).length === 0 && scoringRules.length > 0) {
-      scoringRules.forEach((r) => {
-        pointsTable[r.position] = r.points
-      })
-    }
-    // Fallback if empty
-    if (Object.keys(pointsTable).length === 0) {
-      pointsTable = { 1: 80, 2: 74, 3: 69, 4: 64, 5: 59, 6: 55, 7: 51, 8: 47, 9: 43, 10: 40 }
-    }
+    })
 
-    return effectiveParticipants
-      .map((p, idx) => {
-        // Build race scores for completed stages
-        const raceScores: number[] = []
-        for (let sIdx = 0; sIdx < completedStagesCount; sIdx++) {
-          const st = completedStages[sIdx]
-          const multiplier = st?.points_multiplier || 1
-          // deterministic finishing position simulation for each race
-          const raceFinishPos = ((idx + sIdx * 2) % effectiveParticipants.length) + 1
-          const rawPts = pointsTable[raceFinishPos] || 0
-          raceScores.push(rawPts * multiplier)
-        }
+    const effectiveParticipants = Array.from(participantMap.values())
+    const dropScoresCount = championship?.drop_scores || 0
+    const hasImportedResults = raceResults.length > 0
 
-        // Apply drop scores (descartes: discard lowest N results)
-        const sortedScores = [...raceScores].sort((a, b) => a - b)
-        const discardedScores = sortedScores.slice(0, dropScoresCount)
-        const retainedScores = sortedScores.slice(dropScoresCount)
-        const totalPoints = retainedScores.reduce((sum, val) => sum + val, 0)
-        const grossPoints = raceScores.reduce((sum, val) => sum + val, 0)
+    // Filter by class if selected and not 'geral'
+    const filteredParticipants =
+      selectedClassTab !== 'geral'
+        ? effectiveParticipants.filter((p) => {
+            const hasResultInClass = raceResults.some(
+              (rr) =>
+                (String(rr.cust_id) === p.iracing_id || rr.pilot_id === p.pilotRecordId) &&
+                rr.car_class_name === selectedClassTab,
+            )
+            return p.car_class === selectedClassTab || hasResultInClass
+          })
+        : effectiveParticipants
 
-        return {
-          pilot: p,
-          totalPoints,
-          grossPoints,
-          discardedPoints: discardedScores.reduce((s, v) => s + v, 0),
-          raceScores,
-          wins: idx === 0 ? 2 : idx === 1 ? 1 : 0,
-          podiums: idx < 3 ? 2 : idx < 5 ? 1 : 0,
-        }
-      })
-      .sort((a, b) => b.totalPoints - a.totalPoints)
-  }, [champPilots, pilots, stages, championship, scoringRules])
+    const list = filteredParticipants.map((p) => {
+      let driverResults: RaceResultRecord[] = []
+      if (hasImportedResults) {
+        driverResults = raceResults.filter((rr) => {
+          const matchPilot =
+            (p.iracing_id && String(rr.cust_id) === p.iracing_id) ||
+            (p.pilotRecordId && rr.pilot_id === p.pilotRecordId)
+          if (!matchPilot) return false
+          if (selectedClassTab !== 'geral' && rr.car_class_name !== selectedClassTab) {
+            return false
+          }
+          return true
+        })
+      }
+
+      let raceScores: number[] = []
+      let wins = 0
+      let podiums = 0
+      let poles = 0
+      let fastestLaps = 0
+
+      if (hasImportedResults) {
+        raceScores = driverResults.map((r) => r.total_points ?? 0)
+        wins = driverResults.filter((r) =>
+          selectedClassTab !== 'geral' ? r.finish_position_in_class === 1 : r.finish_position === 1,
+        ).length
+        podiums = driverResults.filter((r) =>
+          selectedClassTab !== 'geral' ? r.finish_position_in_class <= 3 : r.finish_position <= 3,
+        ).length
+        poles = driverResults.filter((r) => r.is_pole).length
+        fastestLaps = driverResults.filter((r) => r.is_fastest_lap).length
+      }
+
+      // Apply drop scores (descartes: discard lowest N results)
+      const sortedScores = [...raceScores].sort((a, b) => a - b)
+      const discardedScores = sortedScores.slice(0, dropScoresCount)
+      const retainedScores = sortedScores.slice(dropScoresCount)
+      const totalPoints = retainedScores.reduce((sum, val) => sum + val, 0)
+      const grossPoints = raceScores.reduce((sum, val) => sum + val, 0)
+
+      return {
+        pilot: p,
+        totalPoints,
+        grossPoints,
+        discardedPoints: discardedScores.reduce((s, v) => s + v, 0),
+        raceScores,
+        wins,
+        podiums,
+        poles,
+        fastestLaps,
+        racesCount: raceScores.length,
+      }
+    })
+
+    list.sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
+      if (b.wins !== a.wins) return b.wins - a.wins
+      return b.podiums - a.podiums
+    })
+
+    return { standings: list, availableClasses }
+  }, [champPilots, pilots, championship, raceResults, selectedClassTab])
 
   if (isLoading || !championship) {
     return (
@@ -326,15 +390,59 @@ export default function ChampionshipDetail() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Classificação com descartes */}
-        <TabsContent value="standings">
+        {/* Tab 1: Classificação com descartes e suporte multi-classe */}
+        <TabsContent value="standings" className="space-y-4">
+          {/* Class Filter Tabs if multi-class */}
+          {availableClasses.length > 1 && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <span className="text-xs text-gray-500 font-racing uppercase tracking-wider flex items-center gap-1 shrink-0">
+                <Layers className="w-3.5 h-3.5 text-[#E10600]" />
+                Filtrar Categoria:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedClassTab('geral')}
+                className={`px-3 py-1 rounded-lg text-xs font-racing uppercase tracking-wider transition-all ${
+                  selectedClassTab === 'geral'
+                    ? 'bg-[#E10600] text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Geral (Todas)
+              </button>
+              {availableClasses.map((cls) => (
+                <button
+                  key={cls}
+                  type="button"
+                  onClick={() => setSelectedClassTab(cls)}
+                  className={`px-3 py-1 rounded-lg text-xs font-racing uppercase tracking-wider transition-all ${
+                    selectedClassTab === cls
+                      ? 'bg-[#E10600] text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {cls}
+                </button>
+              ))}
+            </div>
+          )}
+
           <Card className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
             <div className="p-4 bg-gray-50/70 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-[#E10600]" />
                 <h3 className="font-racing text-sm font-bold text-[#1E1E2F] uppercase">
-                  Classificação Geral de Pilotos
+                  Classificação {selectedClassTab === 'geral' ? 'Geral' : selectedClassTab} de
+                  Pilotos
                 </h3>
+                {raceResults.length > 0 && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300"
+                  >
+                    {raceResults.length} Resultados iRacing Integrados
+                  </Badge>
+                )}
               </div>
               <div className="text-[11px] text-gray-500 flex items-center gap-3">
                 {championship.drop_scores ? (
@@ -353,7 +461,8 @@ export default function ChampionshipDetail() {
                   <tr className="border-b border-gray-200 bg-gray-50/50 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                     <th className="py-3 px-4 w-16 text-center">Pos</th>
                     <th className="py-3 px-4">Piloto</th>
-                    <th className="py-3 px-4">Equipe</th>
+                    <th className="py-3 px-4">Equipe / Classe</th>
+                    <th className="py-3 px-4 text-center">Corridas</th>
                     <th className="py-3 px-4 text-center">Vitórias</th>
                     <th className="py-3 px-4 text-center">Pódios</th>
                     {championship.drop_scores ? (
@@ -366,71 +475,95 @@ export default function ChampionshipDetail() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-gray-700">
-                  {standings.map((row, i) => (
-                    <tr
-                      key={row.pilot.id || i}
-                      onClick={() =>
-                        row.pilot.pilotRecordId && navigate(`/pilotos/${row.pilot.pilotRecordId}`)
-                      }
-                      className="hover:bg-red-50/40 cursor-pointer transition-colors"
-                    >
-                      <td className="py-3 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center justify-center w-6 h-6 rounded-md font-racing font-bold text-xs ${
-                            i === 0
-                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                              : i === 1
-                                ? 'bg-slate-200 text-slate-800'
-                                : i === 2
-                                  ? 'bg-amber-800/20 text-amber-900'
-                                  : 'text-gray-500'
-                          }`}
-                        >
-                          {i + 1}º
-                        </span>
-                      </td>
-
-                      <td className="py-3 px-4 font-semibold text-gray-900 flex items-center gap-2.5">
-                        <Avatar className="w-7 h-7 rounded border border-gray-200">
-                          <AvatarImage src={row.pilot.avatar} />
-                          <AvatarFallback className="bg-[#14141F] text-white text-[10px]">
-                            {row.pilot.name.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <span>{row.pilot.name}</span>
-                          {row.pilot.number && (
-                            <span className="text-[10px] text-gray-400 font-mono ml-1.5">
-                              #{row.pilot.number}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-4 text-gray-600">
-                        {row.pilot.team_name || 'Independente'}
-                      </td>
-
-                      <td className="py-3 px-4 text-center font-mono font-medium">{row.wins}</td>
-
-                      <td className="py-3 px-4 text-center font-mono font-medium">{row.podiums}</td>
-
-                      {championship.drop_scores ? (
-                        <>
-                          <td className="py-3 px-4 text-right font-mono text-gray-400">
-                            {row.grossPoints} pts
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono text-amber-700">
-                            -{row.discardedPoints} pts
-                          </td>
-                        </>
-                      ) : null}
-
-                      <td className="py-3 px-4 text-right font-racing text-base font-bold text-[#E10600] tabular-nums">
-                        {row.totalPoints} pts
+                  {standings.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-gray-500">
+                        Nenhum piloto registrado para esta categoria.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    standings.map((row, i) => (
+                      <tr
+                        key={row.pilot.id || i}
+                        onClick={() =>
+                          row.pilot.pilotRecordId && navigate(`/pilotos/${row.pilot.pilotRecordId}`)
+                        }
+                        className="hover:bg-red-50/40 cursor-pointer transition-colors"
+                      >
+                        <td className="py-3 px-4 text-center">
+                          <span
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-md font-racing font-bold text-xs ${
+                              i === 0
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                : i === 1
+                                  ? 'bg-slate-200 text-slate-800'
+                                  : i === 2
+                                    ? 'bg-amber-800/20 text-amber-900'
+                                    : 'text-gray-500'
+                            }`}
+                          >
+                            {i + 1}º
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-4 font-semibold text-gray-900 flex items-center gap-2.5">
+                          <Avatar className="w-7 h-7 rounded border border-gray-200">
+                            <AvatarImage src={row.pilot.avatar} />
+                            <AvatarFallback className="bg-[#14141F] text-white text-[10px]">
+                              {row.pilot.name.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span>{row.pilot.name}</span>
+                              {row.pilot.iracing_id && (
+                                <span className="text-[9px] text-gray-400 font-mono">
+                                  [ID:{row.pilot.iracing_id}]
+                                </span>
+                              )}
+                            </div>
+                            {row.pilot.number && (
+                              <span className="text-[10px] text-gray-400 font-mono">
+                                #{row.pilot.number}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4 text-gray-600">
+                          <div>{row.pilot.team_name || 'Independente'}</div>
+                          {row.pilot.car_class && (
+                            <span className="text-[10px] text-[#E10600] font-medium">
+                              {row.pilot.car_class}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 text-center font-mono font-medium">
+                          {row.racesCount}
+                        </td>
+                        <td className="py-3 px-4 text-center font-mono font-medium">{row.wins}</td>
+                        <td className="py-3 px-4 text-center font-mono font-medium">
+                          {row.podiums}
+                        </td>
+
+                        {championship.drop_scores ? (
+                          <>
+                            <td className="py-3 px-4 text-right font-mono text-gray-400">
+                              {row.grossPoints} pts
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono text-amber-700">
+                              -{row.discardedPoints} pts
+                            </td>
+                          </>
+                        ) : null}
+
+                        <td className="py-3 px-4 text-right font-racing text-base font-bold text-[#E10600] tabular-nums">
+                          {row.totalPoints} pts
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -499,6 +632,21 @@ export default function ChampionshipDetail() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                          {isCollaborator && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                setStageForImport(st)
+                                setIsIracingModalOpen(true)
+                              }}
+                              className="bg-[#14141F] hover:bg-[#2A2A3D] text-white text-xs font-racing uppercase tracking-wider px-3 h-8 shadow-sm flex items-center gap-1.5"
+                            >
+                              <UploadCloud className="w-3.5 h-3.5 text-[#E10600]" />
+                              Importar iRacing
+                            </Button>
+                          )}
+
                           <Badge
                             variant="outline"
                             className={`text-[11px] uppercase font-medium ${
@@ -627,6 +775,25 @@ export default function ChampionshipDetail() {
           </Card>
         </TabsContent>
       </Tabs>{' '}
+      {/* iRacing Import Modal */}
+      {stageForImport && championship && (
+        <IracingImportModal
+          open={isIracingModalOpen}
+          onOpenChange={setIsIracingModalOpen}
+          championship={championship}
+          stage={stageForImport}
+          races={stageRaces.filter((r) => r.stage_id === stageForImport.id)}
+          currentUserId={championship.user_id}
+          scoringPresets={scoringPresets}
+          onImportSuccess={() => {
+            loadData()
+            toast({
+              title: 'Classificação atualizada',
+              description: 'Os pontos oficiais foram calculados e integrados à tabela.',
+            })
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -143,10 +143,24 @@ export default function PilotsTab({
       return
     }
 
+    const cleanIrId = formIracingId.trim()
+    // Validation: prevent duplicate iRacing ID inside the same championship grid
+    if (cleanIrId) {
+      const duplicate = champPilots.some(
+        (p, idx) => idx !== editingPilotIdx && p.iracing_id && p.iracing_id.trim() === cleanIrId,
+      )
+      if (duplicate) {
+        alert(
+          `O ID iRacing ${cleanIrId} já está vinculado a outro piloto nesta mesma grade! Cada piloto deve ter um ID único.`,
+        )
+        return
+      }
+    }
+
     const payload: LocalChampPilot = {
       pilot_id: formPilotId || undefined,
       name: formName.trim(),
-      iracing_id: formIracingId.trim(),
+      iracing_id: cleanIrId,
       number: formNumber !== '' ? Number(formNumber) : '',
       team: formTeam.trim(),
       number_options: formNumberOptions.trim(),
