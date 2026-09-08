@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T12:33:50.514Z",
+  "generatedAt": "2026-09-08T13:12:35.295Z",
   "collections": [
     {
       "name": "users",
@@ -155,8 +155,8 @@
       "name": "championships",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
+        "list": "@request.auth.id != \"\" && (@request.auth.role = \"colaborador\" || visible_to_pilots = true || visible_to_pilots = null)",
+        "view": "@request.auth.id != \"\" && (@request.auth.role = \"colaborador\" || visible_to_pilots = true || visible_to_pilots = null)",
         "create": "@request.auth.id != \"\"",
         "update": "@request.auth.id != \"\"",
         "delete": "@request.auth.role = \"colaborador\""
@@ -201,6 +201,128 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "championship_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Road", "Oval", "Dirt Road"]
+        },
+        {
+          "name": "drop_scores",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pilots_per_team",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "scoring_pilots_per_team",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "min_lap_percentage_points",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bonus_fastest_lap",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bonus_pole_position",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bonus_no_incidents",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bonus_most_positions_gained",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bonus_most_laps_led",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bonus_lead_lap",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "penalty_points_suspension",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "penalty_points_pit_start",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "loss_points_change_car",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "team_championship",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fixed_setup",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "visible_to_pilots",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "multi_class",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "image",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cars",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "cars"
         }
       ],
       "indexes": ["CREATE INDEX idx_championships_season_id ON championships (season_id)"]
@@ -807,6 +929,80 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_support_messages_ticket_id ON support_messages (ticket_id)"]
+    },
+    {
+      "name": "championship_batteries",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "championship_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "championships"
+        },
+        {
+          "name": "order",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "duration_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Minutos", "Voltas"]
+        },
+        {
+          "name": "duration",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "start_time",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weather",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inverted_positions",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_championship_batteries_champ ON championship_batteries (championship_id)"
+      ]
     }
   ]
 }

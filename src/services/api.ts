@@ -14,6 +14,7 @@ import type {
   SupportTicket,
   SupportMessage,
   User,
+  ChampionshipBattery,
 } from '@/types'
 
 // Helper to get file URL
@@ -90,6 +91,25 @@ export const championshipsService = {
   },
   delete: async (id: string) => {
     return await pb.collection('championships').delete(id)
+  },
+}
+
+// Championship Batteries
+export const championshipBatteriesService = {
+  listByChampionship: async (championshipId: string) => {
+    return await pb.collection('championship_batteries').getFullList<ChampionshipBattery>({
+      filter: `championship_id = "${championshipId}"`,
+      sort: 'order',
+    })
+  },
+  create: async (data: Partial<ChampionshipBattery>) => {
+    return await pb.collection('championship_batteries').create<ChampionshipBattery>(data)
+  },
+  update: async (id: string, data: Partial<ChampionshipBattery>) => {
+    return await pb.collection('championship_batteries').update<ChampionshipBattery>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('championship_batteries').delete(id)
   },
 }
 

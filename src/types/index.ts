@@ -28,19 +28,53 @@ export interface Season extends RecordModel {
 }
 
 export type ChampionshipStatus = 'rascunho' | 'ativo' | 'concluido'
+export type ChampionshipType = 'Road' | 'Oval' | 'Dirt Road'
 
 export interface Championship extends RecordModel {
   season_id: string
   name: string
   description?: string
   status?: ChampionshipStatus
+  championship_type?: ChampionshipType
+  drop_scores?: number
+  pilots_per_team?: number
+  scoring_pilots_per_team?: number
+  min_lap_percentage_points?: number
+  bonus_fastest_lap?: number
+  bonus_pole_position?: number
+  bonus_no_incidents?: number
+  bonus_most_positions_gained?: number
+  bonus_most_laps_led?: number
+  bonus_lead_lap?: number
+  penalty_points_suspension?: number
+  penalty_points_pit_start?: number
+  loss_points_change_car?: boolean
+  team_championship?: boolean
+  fixed_setup?: boolean
+  visible_to_pilots?: boolean
+  multi_class?: boolean
+  image?: string
+  cars?: string[]
   expand?: {
     season_id?: Season & {
       expand?: {
         year_id?: Year
       }
     }
+    cars?: Car[]
   }
+}
+
+export type BatteryDurationType = 'Minutos' | 'Voltas'
+
+export interface ChampionshipBattery extends RecordModel {
+  championship_id: string
+  order: number
+  duration_type: BatteryDurationType
+  duration: number
+  start_time?: string
+  weather?: string
+  inverted_positions?: number
 }
 
 export interface ScoringRule extends RecordModel {
