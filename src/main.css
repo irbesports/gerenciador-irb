@@ -1,0 +1,349 @@
+/* Global styles - Theme, font, utilities, animations and global components */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Racing+Sans+One&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Racing Manager Palette */
+    /* Background #F5F5F7 */
+    --background: 240 7% 97%;
+    /* Text primary #1E1E2F */
+    --foreground: 240 22% 15%;
+
+    /* Surface #FFFFFF */
+    --card: 0 0% 100%;
+    --card-foreground: 240 22% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 22% 15%;
+
+    /* Primary #E10600 (race red) */
+    --primary: 2 100% 44%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary #1E1E2F (dark carbon navy) */
+    --secondary: 240 22% 15%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 5% 94%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 240 5% 94%;
+    --accent-foreground: 240 22% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border #E5E7EB */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 2 100% 44%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar #14141F */
+    --sidebar-background: 240 22% 10%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 2 100% 44%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 18% 16%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 18% 18%;
+    --sidebar-ring: 2 100% 44%;
+
+    --chart-1: 2 100% 44%;
+    --chart-2: 240 22% 15%;
+    --chart-3: 160 84% 39%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 217 91% 60%;
+  }
+
+  .dark {
+    /* Change the colors to match the design system consistent with the dark mode */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 84% 4.9%;
+
+    --secondary: 222.2 84% 4.9%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 222.2 84% 4.9%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 222.2 84% 4.9%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 222.2 84% 4.9%;
+    --input: 222.2 84% 4.9%;
+    --ring: 214.3 31.8% 91.4%;
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 222.2 84% 4.9%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222.2 84% 4.9%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222.2 84% 4.9%;
+    --sidebar-ring: 222.2 84% 4.9%;
+
+    --chart-1: 270 100% 44%;
+    --chart-2: 164 100% 38%;
+    --chart-3: 43 100% 32%;
+    --chart-4: 340 100% 50%;
+    --chart-5: 10 100% 50%;
+  }
+
+  /* NEVER REMOVE THIS */
+  section[aria-label='Notifications alt+T'] {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+@layer utilities {
+  /* KEEP ALL THE ANIMATIONS CLASSES THAT ARE USED BELOW */
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-in-up {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-in-down {
+    from {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out-up {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-out-down {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-down {
+    from {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes spotlight {
+    from {
+      opacity: 0;
+      transform: translate(-72%, -62%) scale(0.5);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -40%) scale(1);
+    }
+  }
+
+  .animate-accordion-down {
+    animation: accordion-down 0.2s ease-out;
+  }
+
+  .animate-accordion-up {
+    animation: accordion-up 0.2s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  .animate-fade-out {
+    animation: fade-out 0.5s ease-out;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out;
+  }
+
+  .animate-fade-in-down {
+    animation: fade-in-down 0.6s ease-out;
+  }
+
+  .animate-fade-out-up {
+    animation: fade-out-up 0.6s ease-out;
+  }
+
+  .animate-fade-out-down {
+    animation: fade-out-down 0.6s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.6s ease-out;
+  }
+
+  .animate-slide-down {
+    animation: slide-down 0.6s ease-out;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-spotlight {
+    animation: spotlight 2s ease forwards;
+  }
+
+  /* RaceMotion utilities */
+  .font-racing {
+    font-family: 'Racing Sans One', Inter, sans-serif;
+  }
+
+  .racing-card {
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease,
+      border-color 150ms ease;
+  }
+  .racing-card:hover {
+    transform: scale(1.01);
+    box-shadow:
+      0 10px 25px -5px rgba(0, 0, 0, 0.08),
+      0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    border-color: #d1d5db;
+  }
+
+  .checkered-pattern {
+    background-image:
+      linear-gradient(45deg, #14141f 25%, transparent 25%),
+      linear-gradient(-45deg, #14141f 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #14141f 75%),
+      linear-gradient(-45deg, transparent 75%, #14141f 75%);
+    background-size: 8px 8px;
+    background-position:
+      0 0,
+      0 4px,
+      4px -4px,
+      -4px 0px;
+  }
+
+  .btn-checkered-sweep {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-checkered-sweep::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.15) 0,
+      rgba(255, 255, 255, 0.15) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+    transition: transform 300ms ease;
+  }
+  .btn-checkered-sweep:hover::before {
+    transform: translateX(200%);
+  }
+}

@@ -1,0 +1,812 @@
+{
+  "generatedAt": "2026-09-08T12:33:50.514Z",
+  "collections": [
+    {
+      "name": "users",
+      "type": "auth",
+      "apiRules": {
+        "list": "id = @request.auth.id",
+        "view": "id = @request.auth.id",
+        "create": "",
+        "update": "id = @request.auth.id",
+        "delete": "id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avatar",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["cliente", "colaborador"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
+        "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
+      ]
+    },
+    {
+      "name": "years",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "year",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_years_year ON years (year)"]
+    },
+    {
+      "name": "seasons",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "year_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "years"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["planejada", "ativa", "concluida"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_seasons_year_id ON seasons (year_id)"]
+    },
+    {
+      "name": "championships",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "season_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "seasons"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["rascunho", "ativo", "concluido"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_championships_season_id ON championships (season_id)"]
+    },
+    {
+      "name": "scoring_rules",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "championship_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "championships"
+        },
+        {
+          "name": "position",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "points",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "bonus_fastest_lap",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_scoring_rules_championship_id ON scoring_rules (championship_id)"
+      ]
+    },
+    {
+      "name": "pilots",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "number",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "team_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avatar",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["ativo", "inativo"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_pilots_user_id ON pilots (user_id)"]
+    },
+    {
+      "name": "infractions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "pilot_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pilots"
+        },
+        {
+          "name": "championship_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "championships"
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "ultrapassagem_perigosa",
+            "toque_na_traseira",
+            "bloqueio_de_trajetoria",
+            "excesso_de_velocidade",
+            "conduta_antidesportiva",
+            "outros"
+          ]
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "severity",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["baixa", "media", "alta"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["aberta", "em_revisao", "resolvida", "descartada"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_infractions_pilot_id ON infractions (pilot_id)",
+        "CREATE INDEX idx_infractions_championship_id ON infractions (championship_id)"
+      ]
+    },
+    {
+      "name": "invoices",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "pilot_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pilots"
+        },
+        {
+          "name": "championship_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "championships"
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pendente", "pago", "atrazado", "cancelado"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_invoices_pilot_id ON invoices (pilot_id)",
+        "CREATE INDEX idx_invoices_championship_id ON invoices (championship_id)"
+      ]
+    },
+    {
+      "name": "payments",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "invoice_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "invoices"
+        },
+        {
+          "name": "pilot_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pilots"
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "payment_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "method",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pix", "cartao", "transferencia", "dinheiro"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_payments_invoice_id ON payments (invoice_id)"]
+    },
+    {
+      "name": "tracks",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "country",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "length",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "image",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "manufacturers",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "country",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "founded_year",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "image",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "cars",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "manufacturer_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "manufacturers"
+        },
+        {
+          "name": "model",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "year",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "image",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_cars_manufacturer_id ON cars (manufacturer_id)"]
+    },
+    {
+      "name": "support_tickets",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "subject",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "content",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["aberto", "em_andamento", "resolvido", "fechado"]
+        },
+        {
+          "name": "priority",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["baixa", "media", "alta"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "support_messages",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "ticket_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "support_tickets"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "content",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_support_messages_ticket_id ON support_messages (ticket_id)"]
+    }
+  ]
+}
