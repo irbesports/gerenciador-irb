@@ -69,6 +69,9 @@ export interface Championship extends RecordModel {
   stages_scoring?: ChampionshipStagesScoring
   image?: string
   cars?: string[]
+  regulation_text?: string
+  regulation_file?: string
+  regulation_rules?: string[] | { code?: string; title: string; description?: string }[]
   expand?: {
     season_id?: Season & {
       expand?: {
@@ -353,5 +356,77 @@ export interface SupportMessage extends RecordModel {
   content: string
   expand?: {
     user_id?: User
+  }
+}
+
+export type ModerationCaseStatus =
+  | 'Em análise'
+  | 'Aplicado em corrida'
+  | 'Aplicado pós corrida'
+  | 'Nenhuma ação necessária'
+
+export type ModerationCaseOpenedByType = 'comissarios' | 'protesto_piloto'
+
+export interface ModerationCase extends RecordModel {
+  stage_race_id: string
+  championship_id: string
+  lap: number
+  involved_pilots?: string[]
+  guilty_pilot_id?: string
+  opened_by_type: ModerationCaseOpenedByType
+  author_user_id?: string
+  author_pilot_id?: string
+  status: ModerationCaseStatus
+  infraction_cited?: string
+  penalty_applied?: string
+  description?: string
+  deadline?: string
+  expand?: {
+    stage_race_id?: StageRace & {
+      expand?: {
+        stage_id?: ChampionshipStage & {
+          expand?: {
+            track?: Track
+            championship_id?: Championship
+          }
+        }
+      }
+    }
+    championship_id?: Championship
+    involved_pilots?: Pilot[]
+    guilty_pilot_id?: Pilot
+    author_user_id?: User
+    author_pilot_id?: Pilot
+  }
+}
+
+export interface ModerationCaseMessage extends RecordModel {
+  case_id: string
+  user_id: string
+  pilot_id?: string
+  message: string
+  attachment?: string
+  is_steward_ruling?: boolean
+  expand?: {
+    user_id?: User
+    pilot_id?: Pilot
+  }
+}
+
+export type NotificationType = 'protesto' | 'comissarios' | 'decisao' | 'geral'
+
+export interface AppNotification extends RecordModel {
+  recipient_user_id?: string
+  recipient_pilot_id?: string
+  type: NotificationType
+  title: string
+  message: string
+  target_link?: string
+  read?: boolean
+  moderation_case_id?: string
+  expand?: {
+    recipient_user_id?: User
+    recipient_pilot_id?: Pilot
+    moderation_case_id?: ModerationCase
   }
 }

@@ -35,6 +35,7 @@ import InfractionForm from '@/pages/InfractionForm'
 import ModerationList from '@/pages/ModerationList'
 import ScoringSystemPage from '@/pages/ScoringSystemPage'
 import RaceModerationPage from '@/pages/RaceModerationPage'
+import ModerationCaseDetail from '@/pages/ModerationCaseDetail'
 
 import ManufacturersList from '@/pages/ManufacturersList'
 import CarsList from '@/pages/CarsList'
@@ -122,8 +123,16 @@ export default function App() {
             <Route
               path="/moderacao/corrida/:raceId"
               element={
-                <ProtectedRoute requireCollaborator>
+                <ProtectedRoute>
                   <RaceModerationPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/moderacao/caso/:id"
+              element={
+                <ProtectedRoute>
+                  <ModerationCaseDetail />
                 </ProtectedRoute>
               }
             />

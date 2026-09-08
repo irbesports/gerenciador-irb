@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T14:13:20.106Z",
+  "generatedAt": "2026-09-08T14:43:09.614Z",
   "collections": [
     {
       "name": "users",
@@ -326,6 +326,24 @@
         },
         {
           "name": "stages_scoring",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "regulation_text",
+          "type": "editor",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "regulation_file",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "regulation_rules",
           "type": "json",
           "required": false,
           "system": false
@@ -1740,6 +1758,280 @@
         "CREATE INDEX idx_race_results_pilot ON race_results (pilot_id)",
         "CREATE INDEX idx_race_results_cust_id ON race_results (cust_id)",
         "CREATE INDEX idx_race_results_status ON race_results (status)"
+      ]
+    },
+    {
+      "name": "moderation_cases",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "stage_race_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "stage_races"
+        },
+        {
+          "name": "championship_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "championships"
+        },
+        {
+          "name": "lap",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "involved_pilots",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "pilots"
+        },
+        {
+          "name": "guilty_pilot_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "pilots"
+        },
+        {
+          "name": "opened_by_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["comissarios", "protesto_piloto"]
+        },
+        {
+          "name": "author_user_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "author_pilot_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "pilots"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Em análise",
+            "Aplicado em corrida",
+            "Aplicado pós corrida",
+            "Nenhuma ação necessária"
+          ]
+        },
+        {
+          "name": "infraction_cited",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "penalty_applied",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deadline",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_mod_cases_race ON moderation_cases (stage_race_id)",
+        "CREATE INDEX idx_mod_cases_champ ON moderation_cases (championship_id)",
+        "CREATE INDEX idx_mod_cases_status ON moderation_cases (status)"
+      ]
+    },
+    {
+      "name": "moderation_case_messages",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\" && user_id = @request.auth.id",
+        "delete": "@request.auth.role = \"colaborador\""
+      },
+      "fields": [
+        {
+          "name": "case_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "moderation_cases"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "pilot_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "pilots"
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "attachment",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_steward_ruling",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_mod_msg_case ON moderation_case_messages (case_id)"]
+    },
+    {
+      "name": "notifications",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "recipient_user_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "recipient_pilot_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "pilots"
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["protesto", "comissarios", "decisao", "geral"]
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_link",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "read",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "moderation_case_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "moderation_cases"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_notif_user ON notifications (recipient_user_id)",
+        "CREATE INDEX idx_notif_pilot ON notifications (recipient_pilot_id)",
+        "CREATE INDEX idx_notif_read ON notifications (read)"
       ]
     }
   ]

@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import NotificationsDropdown from '@/components/NotificationsDropdown'
 
 export default function Layout() {
   const { user, isCollaborator, logout } = useAuth()
@@ -154,40 +155,45 @@ export default function Layout() {
       {/* User Area Footer */}
       <div className="p-3 border-t border-[#2A2A3D] bg-[#0E0E17]">
         {user ? (
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Avatar className="w-8 h-8 rounded-md border border-[#2A2A3D]">
-                <AvatarImage src={user.avatar ? user.avatar : undefined} />
-                <AvatarFallback className="bg-[#1E1E2F] text-white text-xs font-bold">
-                  {user.name?.slice(0, 2).toUpperCase() || 'RM'}
-                </AvatarFallback>
-              </Avatar>
-              <div className={cn('flex flex-col min-w-0', !isMobile && 'hidden lg:flex')}>
-                <span className="text-xs font-semibold text-white truncate">{user.name}</span>
-                <span className="flex items-center gap-1">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'text-[9px] px-1.5 py-0 h-4 border-none capitalize font-medium',
-                      user.role === 'colaborador'
-                        ? 'bg-red-500/20 text-red-400'
-                        : 'bg-emerald-500/20 text-emerald-400',
-                    )}
-                  >
-                    {user.role === 'colaborador' ? 'Colaborador' : 'Cliente'}
-                  </Badge>
-                </span>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Avatar className="w-8 h-8 rounded-md border border-[#2A2A3D]">
+                  <AvatarImage src={user.avatar ? user.avatar : undefined} />
+                  <AvatarFallback className="bg-[#1E1E2F] text-white text-xs font-bold">
+                    {user.name?.slice(0, 2).toUpperCase() || 'RM'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className={cn('flex flex-col min-w-0', !isMobile && 'hidden lg:flex')}>
+                  <span className="text-xs font-semibold text-white truncate">{user.name}</span>
+                  <span className="flex items-center gap-1">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-[9px] px-1.5 py-0 h-4 border-none capitalize font-medium',
+                        user.role === 'colaborador'
+                          ? 'bg-red-500/20 text-red-400'
+                          : 'bg-emerald-500/20 text-emerald-400',
+                      )}
+                    >
+                      {user.role === 'colaborador' ? 'Colaborador' : 'Cliente'}
+                    </Badge>
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <NotificationsDropdown />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="text-gray-400 hover:text-white hover:bg-[#1E1E2F] h-8 w-8"
+                  title="Sair do sistema"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="text-gray-400 hover:text-white hover:bg-[#1E1E2F] h-8 w-8"
-              title="Sair do sistema"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -230,9 +236,10 @@ export default function Layout() {
           </span>
         </div>
 
-        <div className="flex items-center">
+        <div className="flex items-center gap-1">
+          {user && <NotificationsDropdown />}
           {user ? (
-            <Avatar className="w-7 h-7 rounded">
+            <Avatar className="w-7 h-7 rounded ml-1">
               <AvatarImage src={user.avatar} />
               <AvatarFallback className="bg-[#1E1E2F] text-xs font-bold text-white">
                 {user.name?.slice(0, 1).toUpperCase()}

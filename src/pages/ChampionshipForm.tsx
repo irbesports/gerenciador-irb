@@ -110,6 +110,13 @@ export default function ChampionshipForm() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [existingImage, setExistingImage] = useState<string>('')
 
+  // Regulamento (Obrigatório)
+  const [regulationText, setRegulationText] = useState<string>('')
+  const [regulationFile, setRegulationFile] = useState<File | null>(null)
+  const [existingRegulationFile, setExistingRegulationFile] = useState<string>('')
+  const [regulationRulesInput, setRegulationRulesInput] = useState<string>('')
+  const regulationFileInputRef = useRef<HTMLInputElement>(null)
+
   // Car Tab States
   const [multiClass, setMultiClass] = useState<boolean>(false)
   const [selectedCarIds, setSelectedCarIds] = useState<string[]>([])
@@ -275,6 +282,20 @@ export default function ChampionshipForm() {
 
           if (champ.image) {
             setExistingImage(champ.image)
+          }
+
+          if (champ.regulation_text) {
+            setRegulationText(champ.regulation_text)
+          }
+          if (champ.regulation_file) {
+            setExistingRegulationFile(champ.regulation_file)
+          }
+          if (champ.regulation_rules && Array.isArray(champ.regulation_rules)) {
+            setRegulationRulesInput(
+              champ.regulation_rules
+                .map((r: any) => (typeof r === 'string' ? r : r.title || r.code))
+                .join('\n'),
+            )
           }
 
           if (champ.cars && Array.isArray(champ.cars)) {
@@ -447,6 +468,20 @@ export default function ChampionshipForm() {
       return
     }
 
+    // REGULAMENTO OBRIGATÓRIO (tradução literal do usuário: "É obrigatório adicionar o regulamento na página de criação do campeonato")
+    const hasRegulation =
+      regulationText.trim().length > 0 || !!regulationFile || !!existingRegulationFile
+    if (!hasRegulation) {
+      toast({
+        title: 'Regulamento é Obrigatório',
+        description:
+          'É obrigatório adicionar o regulamento do campeonato (arquivo PDF/doc ou texto/ementa) na aba DETALHES.',
+        variant: 'destructive',
+      })
+      setActiveTab('detalhes')
+      return
+    }
+
     try {
       setIsSaving(true)
 
@@ -485,6 +520,17 @@ export default function ChampionshipForm() {
       selectedCarIds.forEach((cId) => {
         formData.append('cars', cId)
       })
+
+      // Regulamento fields
+      formData.append('regulation_text', regulationText)
+      if (regulationFile) {
+        formData.append('regulation_file', regulationFile)
+      }
+      const parsedRules = regulationRulesInput
+        .split('\n')
+        .map((r) => r.trim())
+        .filter(Boolean)
+      formData.append('regulation_rules', JSON.stringify(parsedRules))
 
       if (imageFile) {
         formData.append('image', imageFile)
@@ -1008,6 +1054,108 @@ export default function ChampionshipForm() {
                     onCheckedChange={setVisibleToPilots}
                     className="data-[state=checked]:bg-[#E10600]"
                   />
+                </div>
+              </div>
+
+              {/* REGULAMENTO DO CAMPEONATO (OBRIGATÓRIO) */}
+              <div className="p-5 rounded-xl border border-red-500/25 bg-[#14141F] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-white/10 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-4 bg-[#E10600] rounded-sm inline-block shadow-[0_0_8px_rgba(225,6,0,0.6)]"></span>
+                    <Label className="text-sm font-bold text-white uppercase font-racing tracking-wide">
+                      Regulamento Oficial do Campeonato{' '}
+                      <span className="text-[#E10600]">* (Obrigatório)</span>
+                    </Label>
+                  </div>
+                  <span className="text-[11px] text-gray-400">
+                    Obrigatório para conhecimento dos pilotos e base do sistema de infrações
+                  </span>
+                </div>
+
+                {/* Upload do Arquivo do Regulamento */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-gray-300 font-medium">
+                    Documento do Regulamento (PDF, Word ou Imagem)
+                  </Label>
+                  <div className="p-3 bg-[#1F1F30]/40 rounded-xl border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="text-xs">
+                      {regulationFile ? (
+                        <span className="text-emerald-400 font-medium flex items-center gap-1.5">
+                          ✓ Arquivo selecionado: {regulationFile.name} (
+                          {(regulationFile.size / 1024).toFixed(0)} KB)
+                        </span>
+                      ) : existingRegulationFile && id ? (
+                        <span className="text-emerald-400 font-medium flex items-center gap-1.5">
+                          ✓ Documento cadastrado: {existingRegulationFile}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">
+                          Nenhum documento anexado ainda. Faça o upload do regulamento oficial.
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="file"
+                        ref={regulationFileInputRef}
+                        accept=".pdf,.doc,.docx,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) setRegulationFile(file)
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => regulationFileInputRef.current?.click()}
+                        className="bg-[#1F1F30] hover:bg-[#2A2A3D] text-white border border-white/15 text-xs font-semibold"
+                      >
+                        <Upload className="w-3.5 h-3.5 mr-1.5 text-[#E10600]" />
+                        {existingRegulationFile || regulationFile
+                          ? 'Alterar Regulamento'
+                          : 'Subir Arquivo'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Texto do Regulamento */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-gray-300 font-medium">
+                    Texto / Ementa do Regulamento
+                  </Label>
+                  <Textarea
+                    rows={4}
+                    placeholder="Cole aqui o regulamento, artigos de conduta, procedimentos de largada, regras de pit stop ou link externo..."
+                    value={regulationText}
+                    onChange={(e) => setRegulationText(e.target.value)}
+                    className="bg-[#1F1F30] border-white/10 text-white text-xs resize-y"
+                  />
+                </div>
+
+                {/* Infrações Passíveis de Punição */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-gray-300 font-medium">
+                      Itens Passíveis de Punição do Regulamento (1 por linha)
+                    </Label>
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      Usados na moderação e protestos
+                    </span>
+                  </div>
+                  <Textarea
+                    rows={3}
+                    placeholder={`3.7.3 / Advertência\n5.3.3 / Acréscimo de tempo ao fim da prova\n5.4.1.1 / Acréscimo de tempo ao fim da prova\nToque evitável / Perda de posições`}
+                    value={regulationRulesInput}
+                    onChange={(e) => setRegulationRulesInput(e.target.value)}
+                    className="bg-[#1F1F30] border-white/10 text-white text-xs font-mono resize-y"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    Estes itens ficarão disponíveis no seletor da página de moderação para os
+                    comissários aplicarem durante os julgamentos.
+                  </p>
                 </div>
               </div>
 

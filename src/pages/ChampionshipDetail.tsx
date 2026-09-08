@@ -14,6 +14,8 @@ import {
   ShieldAlert,
   UploadCloud,
   Layers,
+  BookOpen,
+  FileDown,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -48,6 +50,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
 import useRealtime from '@/hooks/use-realtime'
+import { getFileUrl } from '@/services/api'
 
 export default function ChampionshipDetail() {
   const { id } = useParams<{ id: string }>()
@@ -381,6 +384,13 @@ export default function ChampionshipDetail() {
             className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold"
           >
             Pilotos Inscritos ({champPilots.length || pilots.length})
+          </TabsTrigger>
+          <TabsTrigger
+            value="regulation"
+            className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold flex items-center gap-1.5"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Regulamento Oficial
           </TabsTrigger>
           <TabsTrigger
             value="scoring"
@@ -736,6 +746,83 @@ export default function ChampionshipDetail() {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        {/* Tab: Regulamento Oficial */}
+        <TabsContent value="regulation" className="space-y-4">
+          <Card className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-[#E10600]" />
+                  <h3 className="font-racing text-lg font-bold text-[#1E1E2F] uppercase">
+                    Regulamento Oficial da Competição
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Diretrizes da temporada, conduta desportiva em pista e infrações passíveis de
+                  punição.
+                </p>
+              </div>
+
+              {championship.regulation_file && (
+                <Button
+                  type="button"
+                  onClick={() =>
+                    window.open(
+                      getFileUrl('championships', championship.id, championship.regulation_file!),
+                      '_blank',
+                    )
+                  }
+                  className="bg-[#E10600] hover:bg-[#C00500] text-white text-xs font-racing uppercase tracking-wider shadow-sm shrink-0"
+                >
+                  <FileDown className="w-4 h-4 mr-1.5" />
+                  Baixar Documento (PDF/Doc)
+                </Button>
+              )}
+            </div>
+
+            {/* Texto do regulamento */}
+            {championship.regulation_text ? (
+              <div className="space-y-2">
+                <h4 className="font-racing text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Ementa e Artigos
+                </h4>
+                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                  {championship.regulation_text}
+                </div>
+              </div>
+            ) : !championship.regulation_file ? (
+              <div className="p-8 text-center text-xs text-gray-400 bg-gray-50 rounded-xl border border-gray-100">
+                Nenhum regulamento cadastrado neste campeonato.
+              </div>
+            ) : null}
+
+            {/* Itens passíveis de punição */}
+            {championship.regulation_rules &&
+              Array.isArray(championship.regulation_rules) &&
+              championship.regulation_rules.length > 0 && (
+                <div className="space-y-3 pt-4 border-t border-gray-100">
+                  <h4 className="font-racing text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Infrações e Itens Passíveis de Punição
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {championship.regulation_rules.map((rule: any, idx: number) => {
+                      const ruleText = typeof rule === 'string' ? rule : rule.title || rule.code
+                      return (
+                        <div
+                          key={idx}
+                          className="p-2.5 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-800 flex items-center gap-2"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#E10600] shrink-0" />
+                          <span className="font-mono">{ruleText}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+          </Card>
         </TabsContent>
 
         {/* Tab 4: Tabela de Pontuação */}

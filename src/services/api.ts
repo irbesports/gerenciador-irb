@@ -22,6 +22,9 @@ import type {
   ChampionshipPilot,
   RaceImport,
   RaceResultRecord,
+  ModerationCase,
+  ModerationCaseMessage,
+  AppNotification,
 } from '@/types'
 
 // Helper to get file URL
@@ -468,6 +471,184 @@ export const paymentsService = {
   },
   delete: async (id: string) => {
     return await pb.collection('payments').delete(id)
+  },
+}
+
+// Moderation Cases (Race Incidents & Protests)
+export const moderationCasesService = {
+  listByRace: async (stageRaceId: string) => {
+    return await pb.collection('moderation_cases').getFullList<ModerationCase>({
+      filter: `stage_race_id = "${stageRaceId}"`,
+      sort: 'lap',
+      expand:
+        'stage_race_id,stage_race_id.stage_id,stage_race_id.stage_id.track,stage_race_id.stage_id.championship_id,involved_pilots,guilty_pilot_id,author_pilot_id,author_user_id',
+    })
+  },
+  listByChampionship: async (championshipId: string) => {
+    return await pb.collection('moderation_cases').getFullList<ModerationCase>({
+      filter: `championship_id = "${championshipId}"`,
+      sort: '-created',
+      expand:
+        'stage_race_id,stage_race_id.stage_id,stage_race_id.stage_id.track,involved_pilots,guilty_pilot_id,author_pilot_id,author_user_id',
+    })
+  },
+  listAll: async () => {
+    return await pb.collection('moderation_cases').getFullList<ModerationCase>({
+      sort: '-created',
+      expand:
+        'stage_race_id,stage_race_id.stage_id,stage_race_id.stage_id.track,stage_race_id.stage_id.championship_id,involved_pilots,guilty_pilot_id,author_pilot_id,author_user_id',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('moderation_cases').getOne<ModerationCase>(id, {
+      expand:
+        'stage_race_id,stage_race_id.stage_id,stage_race_id.stage_id.track,stage_race_id.stage_id.championship_id,involved_pilots,guilty_pilot_id,author_pilot_id,author_user_id',
+    })
+  },
+  create: async (data: Partial<ModerationCase>) => {
+    return await pb.collection('moderation_cases').create<ModerationCase>(data)
+  },
+  update: async (id: string, data: Partial<ModerationCase>) => {
+    return await pb.collection('moderation_cases').update<ModerationCase>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('moderation_cases').delete(id)
+  },
+}
+
+// Moderation Case Messages (Thread / Versions)
+export const moderationCaseMessagesService = {
+  listByCase: async (caseId: string) => {
+    return await pb.collection('moderation_case_messages').getFullList<ModerationCaseMessage>({
+      filter: `case_id = "${caseId}"`,
+      sort: 'created',
+      expand: 'user_id,pilot_id',
+    })
+  },
+  create: async (data: Partial<ModerationCaseMessage>) => {
+    return await pb.collection('moderation_case_messages').create<ModerationCaseMessage>(data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('moderation_case_messages').delete(id)
+  },
+}
+
+// Notifications Service
+export const notificationsService = {
+  listForCurrentUser: async (userId?: string, pilotId?: string) => {
+    if (!userId && !pilotId) return []
+    const parts: string[] = []
+    if (userId) parts.push(`recipient_user_id = "${userId}"`)
+    if (pilotId) parts.push(`recipient_pilot_id = "${pilotId}"`)
+    const filter = parts.join(' || ')
+    return await pb.collection('notifications').getFullList<AppNotification>({
+      filter,
+      sort: '-created',
+      expand: 'recipient_pilot_id,moderation_case_id',
+    })
+  },
+  markAsRead: async (id: string) => {
+    return await pb.collection('notifications').update<AppNotification>(id, { read: true })
+  },
+  markAllAsRead: async (userId?: string, pilotId?: string) => {
+    const list = await notificationsService.listForCurrentUser(userId, pilotId)
+    const unread = list.filter((n) => !n.read)
+    await Promise.all(
+      unread.map((n) => pb.collection('notifications').update(n.id, { read: true })),
+    )
+  },
+  create: async (data: Partial<AppNotification>) => {
+    return await pb.collection('notifications').create<AppNotification>(data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('notifications').delete(id)
+  },
+  // Helper to notify pilots involved in a moderation case
+  notifyInvolvedPilots: async (params: {
+    caseRecord: ModerationCase
+    involvedPilotRecords: Pilot[]
+    stageName: string
+    trackName: string
+    raceName: string
+    lap: number
+    openedByType: 'comissarios' | 'protesto_piloto'
+    protestingPilotName?: string
+  }) => {
+    const {
+      caseRecord,
+      involvedPilotRecords,
+      stageName,
+      trackName,
+      raceName,
+      lap,
+      openedByType,
+      protestingPilotName,
+    } = params
+
+    const targetLink = `/moderacao/caso/${caseRecord.id}`
+    const involvedNames = involvedPilotRecords
+      .map((p) => `#${p.number ?? ''} ${p.name}`.trim())
+      .join(', ')
+
+    for (const pilot of involvedPilotRecords) {
+      // Do not notify the author pilot about their own protest
+      if (openedByType === 'protesto_piloto' && caseRecord.author_pilot_id === pilot.id) {
+        continue
+      }
+
+      let title = ''
+      let message = ''
+
+      if (openedByType === 'protesto_piloto') {
+        title = `Protesto aberto — ${raceName} (Volta ${lap})`
+        message = `Abriram um protesto contra você na ${stageName} da pista ${trackName}, da ${raceName} na volta ${lap}, envolvendo: ${involvedNames}. Notificado por: ${protestingPilotName || 'Piloto'}. Você tem até 24h para dar sua versão do incidente no sistema.`
+      } else {
+        title = `Incidente em análise pela comissão — ${raceName} (Volta ${lap})`
+        message = `Seu nome está envolvido em um incidente na ${stageName}, pista ${trackName}, da ${raceName} na volta ${lap}, envolvendo: ${involvedNames}. Notificado por: Comissários de Prova. Acesse os detalhes para adicionar sua resposta à análise.`
+      }
+
+      try {
+        await pb.collection('notifications').create({
+          recipient_user_id: pilot.user_id || undefined,
+          recipient_pilot_id: pilot.id,
+          type: openedByType === 'protesto_piloto' ? 'protesto' : 'comissarios',
+          title,
+          message,
+          target_link: targetLink,
+          read: false,
+          moderation_case_id: caseRecord.id,
+        })
+      } catch (err) {
+        console.error('Error creating notification for pilot:', pilot.id, err)
+      }
+    }
+  },
+  // Helper to notify when a decision/resolution is applied
+  notifyCaseRuling: async (params: {
+    caseRecord: ModerationCase
+    involvedPilotRecords: Pilot[]
+    status: string
+    rulingText: string
+  }) => {
+    const { caseRecord, involvedPilotRecords, status, rulingText } = params
+    const targetLink = `/moderacao/caso/${caseRecord.id}`
+
+    for (const pilot of involvedPilotRecords) {
+      try {
+        await pb.collection('notifications').create({
+          recipient_user_id: pilot.user_id || undefined,
+          recipient_pilot_id: pilot.id,
+          type: 'decisao',
+          title: `Decisão de incidente: ${status}`,
+          message: `A comissão de prova registrou uma decisão no caso da volta ${caseRecord.lap}: "${status}". ${rulingText ? `Resumo: ${rulingText}` : ''}`,
+          target_link: targetLink,
+          read: false,
+          moderation_case_id: caseRecord.id,
+        })
+      } catch (err) {
+        console.error('Error creating ruling notification for pilot:', pilot.id, err)
+      }
+    }
   },
 }
 

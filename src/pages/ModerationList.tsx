@@ -1,8 +1,25 @@
 import React, { useEffect, useState } from 'react'
-import { ShieldCheck, Check, X, Eye, AlertTriangle, UserCheck, FileText, Clock } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import {
+  ShieldCheck,
+  Check,
+  X,
+  Eye,
+  AlertTriangle,
+  UserCheck,
+  FileText,
+  Clock,
+  Scale,
+  ArrowRight,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { infractionsService, pilotsService, supportService } from '@/services/api'
-import type { Infraction, Pilot, SupportTicket } from '@/types'
+import {
+  infractionsService,
+  pilotsService,
+  supportService,
+  moderationCasesService,
+} from '@/services/api'
+import type { Infraction, Pilot, SupportTicket, ModerationCase } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,9 +32,11 @@ export default function ModerationList() {
   const { isCollaborator } = useAuth()
   const { toast } = useToast()
 
+  const navigate = useNavigate()
   const [infractions, setInfractions] = useState<Infraction[]>([])
   const [pilots, setPilots] = useState<Pilot[]>([])
   const [tickets, setTickets] = useState<SupportTicket[]>([])
+  const [moderationCases, setModerationCases] = useState<ModerationCase[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // Details dialog
@@ -25,14 +44,16 @@ export default function ModerationList() {
 
   const loadData = async () => {
     try {
-      const [infs, pList, tList] = await Promise.all([
+      const [infs, pList, tList, casesList] = await Promise.all([
         infractionsService.list(),
         pilotsService.list(),
         supportService.listTickets(),
+        moderationCasesService.listAll().catch(() => []),
       ])
       setInfractions(infs)
       setPilots(pList)
       setTickets(tList)
+      setModerationCases(casesList)
     } catch (err) {
       console.error(err)
       toast({
@@ -51,6 +72,7 @@ export default function ModerationList() {
 
   useRealtime<Infraction>('infractions', () => loadData())
   useRealtime<SupportTicket>('support_tickets', () => loadData())
+  useRealtime<ModerationCase>('moderation_cases', () => loadData())
 
   // Pending moderation items
   const pendingInfractions = infractions.filter(
@@ -58,6 +80,7 @@ export default function ModerationList() {
   )
   const pendingTickets = tickets.filter((t) => t.status === 'aberto')
   const inactivePilots = pilots.filter((p) => p.status === 'inativo')
+  const pendingCases = moderationCases.filter((c) => c.status === 'Em análise')
 
   const handleApproveInfraction = async (id: string) => {
     try {
@@ -106,13 +129,24 @@ export default function ModerationList() {
 
         <div className="flex items-center gap-2">
           <Badge className="bg-red-50 text-[#E10600] border border-red-200 text-xs px-2.5 py-1 font-bold">
-            {pendingInfractions.length + inactivePilots.length + pendingTickets.length} pendências
+            {pendingCases.length +
+              pendingInfractions.length +
+              inactivePilots.length +
+              pendingTickets.length}{' '}
+            pendências
           </Badge>
         </div>
       </div>
 
-      <Tabs defaultValue="infractions" className="w-full">
-        <TabsList className="bg-gray-100 p-1 border border-gray-200 rounded-xl mb-4">
+      <Tabs defaultValue="cases" className="w-full">
+        <TabsList className="bg-gray-100 p-1 border border-gray-200 rounded-xl mb-4 flex-wrap">
+          <TabsTrigger
+            value="cases"
+            className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold flex items-center gap-1.5"
+          >
+            <Scale className="w-3.5 h-3.5" />
+            Casos de Moderação ({moderationCases.length})
+          </TabsTrigger>
           <TabsTrigger
             value="infractions"
             className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold"
@@ -251,11 +285,106 @@ export default function ModerationList() {
                         className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
                       >
                         <Check className="w-3.5 h-3.5 mr-1" />
-                        Homologar Piloto
+                        Homologar
                       </Button>
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* Tab 0: Casos e Protestos de Moderação */}
+        <TabsContent value="cases">
+          <Card className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            {moderationCases.length === 0 ? (
+              <div className="p-12 text-center text-xs text-gray-500">
+                Nenhum caso ou protesto anotado no momento.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50/70 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                      <th className="py-3 px-4">Volta</th>
+                      <th className="py-3 px-4">Campeonato / Etapa</th>
+                      <th className="py-3 px-4">Notificado Por</th>
+                      <th className="py-3 px-4">Infração Citada</th>
+                      <th className="py-3 px-4 text-center">Status</th>
+                      <th className="py-3 px-4 text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-gray-700">
+                    {moderationCases.map((c) => {
+                      const notifBy =
+                        c.opened_by_type === 'comissarios'
+                          ? 'Comissários de Prova'
+                          : c.expand?.author_pilot_id?.name ||
+                            c.expand?.author_user_id?.name ||
+                            'Piloto'
+
+                      const race = c.expand?.stage_race_id
+                      const stage = race?.expand?.stage_id
+                      const champ = c.expand?.championship_id || stage?.expand?.championship_id
+
+                      return (
+                        <tr
+                          key={c.id}
+                          className="hover:bg-red-50/20 cursor-pointer"
+                          onClick={() => navigate(`/moderacao/caso/${c.id}`)}
+                        >
+                          <td className="py-3.5 px-4 font-racing font-bold text-gray-900">
+                            Volta {c.lap}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-semibold text-gray-800 block">
+                              {champ?.name || 'Campeonato'}
+                            </span>
+                            <span className="text-[11px] text-gray-500">
+                              Etapa {stage?.order ?? 1} • {race?.name || 'Corrida'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-700">
+                              {notifBy}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-gray-800 font-medium">
+                            {c.infraction_cited || 'A definir'}
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <Badge
+                              className={`text-[10px] font-bold uppercase ${
+                                c.status === 'Em análise'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : c.status === 'Nenhuma ação necessária'
+                                    ? 'bg-gray-100 text-gray-700'
+                                    : 'bg-emerald-100 text-emerald-800'
+                              }`}
+                            >
+                              {c.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(`/moderacao/caso/${c.id}`)
+                              }}
+                              className="text-xs text-[#E10600] font-semibold h-7"
+                            >
+                              Ver Detalhes
+                              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </Card>
