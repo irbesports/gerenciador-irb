@@ -136,16 +136,36 @@ export function parseIracingJson(fileContent: string | object): IracingParsedFil
     }
   }
 
+  // Regras DEFINIDAS pela Especificação Mestre de Sessões de Corrida:
+  // - Etapa com 1 corrida: sessão "RACE" = corrida única.
+  // - Etapa com 2 corridas: "HEAT 1" + "FEATURE".
+  // - Etapa com 3 corridas: "HEAT 1" + "FEATURE" + "CONSOLATION".
+  // Sessões Practice/Qualify/Warmup/outras NÃO são corridas de classificação.
+  const NON_RACE_KEYWORDS = ['PRACTICE', 'QUALIFY', 'WARMUP', 'PRACTISE', 'TEST', 'TIME TRIAL']
+
   const all_sessions: IracingParsedSession[] = rawSessions.map((session, sIdx) => {
-    const sName = String(session.simsession_name || `Sessão ${sIdx + 1}`)
-    const sTypeName = String(session.simsession_type_name || '')
+    const sName = String(session.simsession_name || `Sessão ${sIdx + 1}`).trim()
+    const sTypeName = String(session.simsession_type_name || '').trim()
     const sType = Number(session.simsession_type || 0)
-    // In iRacing, simsession_type 6 is RACE, simsession_name usually "RACE"
-    const isRace =
-      sType === 6 ||
-      sName.toUpperCase().includes('RACE') ||
-      sTypeName.toUpperCase().includes('RACE') ||
-      session.results?.some((r: any) => (r.laps_complete || 0) > 0)
+    const upperName = sName.toUpperCase()
+    const upperTypeName = sTypeName.toUpperCase()
+
+    // Verificar se é sessão de treino/warmup/qualy explicitamente (nunca é corrida de classificação)
+    const isNonRace = NON_RACE_KEYWORDS.some(
+      (kw) => upperName.includes(kw) || upperTypeName.includes(kw),
+    )
+
+    // Regras mestre: RACE, HEAT, FEATURE, CONSOLATION ou simsession_type 6 (Race oficial iRacing)
+    const isMasterRaceSession =
+      !isNonRace &&
+      (upperName === 'RACE' ||
+        upperName.startsWith('HEAT') ||
+        upperName.includes('FEATURE') ||
+        upperName.includes('CONSOLATION') ||
+        sType === 6 ||
+        upperTypeName.includes('RACE'))
+
+    const isRace = isMasterRaceSession
 
     const rawResults: any[] = Array.isArray(session.results) ? session.results : []
 
@@ -275,7 +295,7 @@ export function parseIracingJson(fileContent: string | object): IracingParsedFil
     }
   })
 
-  // Apenas sessões que representam corridas (ou todas se nenhuma explicitada)
+  // Apenas sessões que representam corridas oficiais (desconsiderando treinos/qualy)
   const race_sessions = all_sessions.filter((s) => s.is_race)
   const finalRaceSessions = race_sessions.length > 0 ? race_sessions : all_sessions
 

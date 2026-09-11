@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T16:00:12.339Z",
+  "generatedAt": "2026-09-11T12:02:48.845Z",
   "collections": [
     {
       "name": "users",
@@ -353,6 +353,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "series_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "series"
         }
       ],
       "indexes": ["CREATE INDEX idx_championships_season_id ON championships (season_id)"]
@@ -635,6 +642,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "championship_pilot_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "championship_pilots"
         }
       ],
       "indexes": [
@@ -1409,6 +1423,38 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "registration_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pendente", "aprovada", "recusada", "cancelada"]
+        },
+        {
+          "name": "payment_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pendente", "pago", "isento", "reembolsado", "cancelado"]
+        },
+        {
+          "name": "paid_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_at",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -2107,6 +2153,57 @@
         "CREATE INDEX idx_notif_pilot ON notifications (recipient_pilot_id)",
         "CREATE INDEX idx_notif_read ON notifications (read)"
       ]
+    },
+    {
+      "name": "series",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "short_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "iracing_series_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["ativa", "inativa"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

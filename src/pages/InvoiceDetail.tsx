@@ -17,6 +17,7 @@ import {
   paymentsService,
   pilotsService,
   championshipsService,
+  championshipPilotsService,
 } from '@/services/api'
 import type { Invoice, Payment, Pilot, Championship, PaymentMethod } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -111,7 +112,38 @@ export default function InvoiceDetail() {
         payment_date: `${payDate} 12:00:00.000Z`,
       })
 
-      toast({ title: 'Sucesso', description: 'Pagamento registrado com sucesso!' })
+      // Regra da Especificação Mestre: PILOTO → INSCRIÇÃO → PAGAMENTO → CONFIRMAÇÃO → STATUS DA INSCRIÇÃO
+      // A confirmação manual do pagamento aprova a inscrição correspondente
+      // (Gateway via API é PENDENTE)
+      let approvedMsg = ''
+      try {
+        if (invoice.championship_pilot_id) {
+          await championshipPilotsService.approve(invoice.championship_pilot_id)
+          await championshipPilotsService.update(invoice.championship_pilot_id, {
+            payment_status: 'pago',
+            paid_at: new Date().toISOString(),
+          })
+          approvedMsg = ' Inscrição vinculada aprovada com sucesso.'
+        } else if (invoice.championship_id && invoice.pilot_id) {
+          const cpList = await championshipPilotsService.listByChampionship(invoice.championship_id)
+          const matchedCP = cpList.find((cp) => cp.pilot === invoice.pilot_id)
+          if (matchedCP) {
+            await championshipPilotsService.approve(matchedCP.id)
+            await championshipPilotsService.update(matchedCP.id, {
+              payment_status: 'pago',
+              paid_at: new Date().toISOString(),
+            })
+            approvedMsg = ' Inscrição do piloto no campeonato aprovada na lista oficial.'
+          }
+        }
+      } catch (cpErr) {
+        console.warn('Erro ao aprovar inscrição após pagamento:', cpErr)
+      }
+
+      toast({
+        title: 'Pagamento registrado!',
+        description: `Recebimento computado com sucesso no sistema.${approvedMsg}`,
+      })
       setIsPaymentOpen(false)
       loadData()
     } catch (err: any) {
@@ -221,13 +253,33 @@ export default function InvoiceDetail() {
 
         <Card className="p-5 bg-white border border-gray-200 rounded-xl space-y-2">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
-            Competição
+            Competição / Inscrição
           </span>
           <h4 className="font-racing text-base font-bold text-gray-900">
             {championship?.name || 'Campeonato'}
           </h4>
-          <p className="text-xs text-gray-500">Categoria oficial de automobilismo</p>
+          <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-1">
+            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+            Vínculo: Inscrição oficial do piloto neste campeonato
+          </p>
         </Card>
+      </div>
+
+      {/* Notice regarding API Gateway vs Manual Confirmation */}
+      <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <span className="font-bold block uppercase tracking-wider">
+            Regra Financeira — Confirmação de Inscrição
+          </span>
+          <span className="text-blue-800 text-[11px]">
+            A confirmação manual pelo administrador atualiza o status financeiro e aprova
+            automaticamente a inscrição do piloto.{' '}
+            <em>
+              (Integração automática via webhook/API de gateway bancário marcada como [PENDENTE] na
+              especificação).
+            </em>
+          </span>
+        </div>
       </div>
 
       {/* Description */}

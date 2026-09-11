@@ -87,7 +87,7 @@ export default function ChampionshipDetail() {
           scoringRulesService.listByChampionship(id),
           infractionsService.list(),
           championshipStagesService.listByChampionship(id),
-          championshipPilotsService.listByChampionship(id),
+          championshipPilotsService.listByChampionship(id, false),
           raceResultsService.listByChampionship(id, true),
           scoringPresetsService.list(),
           moderationCasesService.listByChampionship(id, false).catch(() => []),
@@ -181,7 +181,13 @@ export default function ChampionshipDetail() {
     })
     const availableClasses = Array.from(classesSet)
 
-    // Determine participant list: championship_pilots, race results or general pilots
+    // Regra da Especificação Mestre: LISTA DE INSCRITOS = apenas inscrições APROVADAS
+    // Classificação é calculada de resultados + pontuação + penalidades. Inscrições canceladas/recusadas saem da lista.
+    const approvedInscriptions = champPilots.filter(
+      (cp) => (cp.registration_status || 'aprovada') === 'aprovada',
+    )
+
+    // Determine participant list: apenas inscrições aprovadas (ou pilotos com resultados oficiais importados)
     const participantMap = new Map<
       string,
       {
@@ -193,10 +199,11 @@ export default function ChampionshipDetail() {
         pilotRecordId?: string
         iracing_id?: string
         car_class?: string
+        registration_status?: string
       }
     >()
 
-    champPilots.forEach((cp) => {
+    approvedInscriptions.forEach((cp) => {
       const key = cp.iracing_id ? `ir_${cp.iracing_id}` : cp.pilot || cp.id
       participantMap.set(key, {
         id: cp.id,
@@ -207,6 +214,7 @@ export default function ChampionshipDetail() {
         pilotRecordId: cp.pilot,
         iracing_id: cp.iracing_id,
         car_class: cp.car_class,
+        registration_status: cp.registration_status,
       })
     })
 
@@ -463,7 +471,12 @@ export default function ChampionshipDetail() {
             value="participants"
             className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold"
           >
-            Pilotos Inscritos ({champPilots.length || pilots.length})
+            Lista de Inscritos (
+            {
+              champPilots.filter((cp) => (cp.registration_status || 'aprovada') === 'aprovada')
+                .length
+            }
+            )
           </TabsTrigger>
           <TabsTrigger
             value="regulation"
@@ -873,37 +886,58 @@ export default function ChampionshipDetail() {
           </Card>
         </TabsContent>
 
-        {/* Tab 3: Participantes */}
-        <TabsContent value="participants">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {(champPilots.length > 0 ? champPilots : pilots).map((p: any) => (
-              <Card
-                key={p.id}
-                onClick={() => p.pilot && navigate(`/pilotos/${p.pilot}`)}
-                className="racing-card p-4 cursor-pointer flex items-center justify-between"
+        {/* Tab 3: Participantes — Visão Derivada de Inscrições Aprovadas (Especificação Mestre) */}
+        <TabsContent value="participants" className="space-y-4">
+          <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-600">
+            <div className="flex items-center gap-2">
+              <span className="font-racing uppercase font-bold text-[#1E1E2F]">
+                Lista Oficial de Inscritos (Visão Derivada)
+              </span>
+              <Badge
+                variant="outline"
+                className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[10px]"
               >
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-10 h-10 rounded-lg border border-gray-200">
-                    <AvatarImage src={p.avatar || p.expand?.pilot?.avatar} />
-                    <AvatarFallback className="bg-[#14141F] text-white text-xs font-bold">
-                      {(p.name || 'PI').slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h4 className="font-racing font-bold text-sm text-gray-900">{p.name}</h4>
-                    <p className="text-xs text-gray-500">
-                      {p.team || p.team_name || 'Piloto Oficial'}
-                    </p>
-                    {p.iracing_id && (
-                      <p className="text-[10px] text-gray-400 font-mono">iRacing: {p.iracing_id}</p>
-                    )}
+                Apenas Inscrições Aprovadas
+              </Badge>
+            </div>
+            <span className="text-[11px] text-gray-500">
+              Pilotos confirmados pela administração após validação / pagamento.
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {champPilots
+              .filter((cp) => (cp.registration_status || 'aprovada') === 'aprovada')
+              .map((p) => (
+                <Card
+                  key={p.id}
+                  onClick={() => p.pilot && navigate(`/pilotos/${p.pilot}`)}
+                  className="racing-card p-4 cursor-pointer flex items-center justify-between hover:border-red-300 transition-all bg-white"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-10 h-10 rounded-lg border border-gray-200">
+                      <AvatarImage src={p.expand?.pilot?.avatar} />
+                      <AvatarFallback className="bg-[#14141F] text-white text-xs font-bold">
+                        {(p.name || 'PI').slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h4 className="font-racing font-bold text-sm text-gray-900">{p.name}</h4>
+                      <p className="text-xs text-gray-500">
+                        {p.team || p.expand?.pilot?.team_name || 'Piloto Oficial'}
+                      </p>
+                      {p.iracing_id && (
+                        <p className="text-[10px] text-gray-400 font-mono">
+                          iRacing: {p.iracing_id}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                {p.number && (
-                  <span className="font-racing text-lg font-bold text-gray-400">#{p.number}</span>
-                )}
-              </Card>
-            ))}
+                  {p.number !== undefined && p.number !== null && (
+                    <span className="font-racing text-lg font-bold text-gray-400">#{p.number}</span>
+                  )}
+                </Card>
+              ))}
           </div>
         </TabsContent>
 

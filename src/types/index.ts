@@ -43,8 +43,20 @@ export interface MultiClassScoringConfig {
 
 export type ChampionshipStagesScoring = SingleScoringConfig | MultiClassScoringConfig[]
 
+export type SeriesStatus = 'ativa' | 'inativa'
+
+export interface Series extends RecordModel {
+  name: string
+  short_name?: string
+  description?: string
+  iracing_series_id?: string
+  logo?: string
+  status?: SeriesStatus
+}
+
 export interface Championship extends RecordModel {
   season_id: string
+  series_id?: string
   name: string
   description?: string
   status?: ChampionshipStatus
@@ -79,6 +91,7 @@ export interface Championship extends RecordModel {
         year_id?: Year
       }
     }
+    series_id?: Series
     cars?: Car[]
   }
 }
@@ -146,6 +159,9 @@ export interface ScoringPreset extends RecordModel {
   rules: ScoringPresetRule[]
 }
 
+export type RegistrationStatus = 'pendente' | 'aprovada' | 'recusada' | 'cancelada'
+export type RegistrationPaymentStatus = 'pendente' | 'pago' | 'isento' | 'reembolsado' | 'cancelado'
+
 export interface ChampionshipPilot extends RecordModel {
   championship_id: string
   pilot?: string
@@ -155,8 +171,14 @@ export interface ChampionshipPilot extends RecordModel {
   team?: string
   number_options?: string
   car_class?: string
+  registration_status?: RegistrationStatus
+  payment_status?: RegistrationPaymentStatus
+  paid_at?: string
+  approved_at?: string
+  notes?: string
   expand?: {
     pilot?: Pilot
+    championship_id?: Championship
   }
 }
 
@@ -293,6 +315,7 @@ export type InvoiceStatus = 'pendente' | 'pago' | 'atrazado' | 'cancelado'
 export interface Invoice extends RecordModel {
   pilot_id: string
   championship_id: string
+  championship_pilot_id?: string
   amount: number
   description?: string
   due_date?: string
@@ -300,6 +323,7 @@ export interface Invoice extends RecordModel {
   expand?: {
     pilot_id?: Pilot
     championship_id?: Championship
+    championship_pilot_id?: ChampionshipPilot
   }
 }
 

@@ -39,6 +39,8 @@ export interface LocalChampPilot {
   team: string
   number_options: string
   car_class?: string
+  registration_status?: 'pendente' | 'aprovada' | 'recusada' | 'cancelada'
+  payment_status?: 'pendente' | 'pago' | 'isento' | 'reembolsado' | 'cancelado'
 }
 
 interface PilotsTabProps {
@@ -71,16 +73,34 @@ export default function PilotsTab({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPilotIdx, setEditingPilotIdx] = useState<number | null>(null)
 
+  const [statusFilter, setStatusFilter] = useState<
+    'todas' | 'aprovada' | 'pendente' | 'recusada' | 'cancelada'
+  >('todas')
   const [formPilotId, setFormPilotId] = useState<string>('')
   const [formName, setFormName] = useState('')
   const [formIracingId, setFormIracingId] = useState('')
   const [formNumber, setFormNumber] = useState<number | ''>('')
   const [formTeam, setFormTeam] = useState('')
   const [formNumberOptions, setFormNumberOptions] = useState('')
+  const [formRegStatus, setFormRegStatus] = useState<
+    'pendente' | 'aprovada' | 'recusada' | 'cancelada'
+  >('aprovada')
+  const [formPaymentStatus, setFormPaymentStatus] = useState<
+    'pendente' | 'pago' | 'isento' | 'reembolsado' | 'cancelado'
+  >('pago')
+
+  // Count approved inscriptions vs total
+  const approvedCount = useMemo(() => {
+    return champPilots.filter((p) => (p.registration_status || 'aprovada') === 'aprovada').length
+  }, [champPilots])
 
   // Filtered rows
   const filteredList = useMemo(() => {
     return champPilots.filter((p) => {
+      const pStatus = p.registration_status || 'aprovada'
+      if (statusFilter !== 'todas' && pStatus !== statusFilter) {
+        return false
+      }
       const matchIracing =
         !filterIracingId || (p.iracing_id && p.iracing_id.includes(filterIracingId))
       const matchNumber =
@@ -93,7 +113,15 @@ export default function PilotsTab({
 
       return matchIracing && matchNumber && matchName && matchTeam && matchOptions
     })
-  }, [champPilots, filterIracingId, filterNumber, filterName, filterTeam, filterOptions])
+  }, [
+    champPilots,
+    statusFilter,
+    filterIracingId,
+    filterNumber,
+    filterName,
+    filterTeam,
+    filterOptions,
+  ])
 
   // Pagination logic
   const totalPages = Math.ceil(filteredList.length / pageSize) || 1
@@ -110,6 +138,8 @@ export default function PilotsTab({
     setFormNumber('')
     setFormTeam('')
     setFormNumberOptions('')
+    setFormRegStatus('aprovada')
+    setFormPaymentStatus('pago')
     setIsModalOpen(true)
   }
 
@@ -124,6 +154,8 @@ export default function PilotsTab({
     setFormNumber(p.number)
     setFormTeam(p.team)
     setFormNumberOptions(p.number_options)
+    setFormRegStatus(p.registration_status || 'aprovada')
+    setFormPaymentStatus(p.payment_status || 'pago')
     setIsModalOpen(true)
   }
 
@@ -164,6 +196,8 @@ export default function PilotsTab({
       number: formNumber !== '' ? Number(formNumber) : '',
       team: formTeam.trim(),
       number_options: formNumberOptions.trim(),
+      registration_status: formRegStatus,
+      payment_status: formPaymentStatus,
     }
 
     if (editingPilotIdx !== null) {
@@ -219,17 +253,43 @@ export default function PilotsTab({
     <div className="space-y-6 animate-fade-in">
       <Card className="p-6 bg-[#161622] border border-white/10 rounded-xl shadow-lg space-y-4">
         {/* Header with Export (tray) and Add (+) buttons like Print 2 */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
-          <div>
-            <span className="font-racing text-sm font-bold text-white uppercase tracking-wider block">
-              Grade de Pilotos Inscritos ({champPilots.length})
-            </span>
-            <span className="text-[11px] text-gray-400">
-              Gerencie números oficiais, ID iRacing e vinculações por equipe
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-racing text-sm font-bold text-white uppercase tracking-wider block">
+                Inscrições do Campeonato ({champPilots.length})
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                {approvedCount} Aprovadas (Lista Oficial de Inscritos)
+              </span>
+            </div>
+            <span className="text-[11px] text-gray-400 block">
+              Entidade Inscrição: apenas inscrições <strong>Aprovadas</strong> compõem a Lista de
+              Inscritos oficial, autocomplete da moderação e grid de classificação.
             </span>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Status Filter selector */}
+            <Select
+              value={statusFilter}
+              onValueChange={(val: any) => {
+                setStatusFilter(val)
+                setCurrentPage(1)
+              }}
+            >
+              <SelectTrigger className="w-36 h-8 text-xs bg-[#1F1F30] border-white/10 text-white">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1F1F30] border-white/10 text-white">
+                <SelectItem value="todas">Todos Status</SelectItem>
+                <SelectItem value="aprovada">Aprovadas</SelectItem>
+                <SelectItem value="pendente">Pendentes</SelectItem>
+                <SelectItem value="recusada">Recusadas</SelectItem>
+                <SelectItem value="cancelada">Canceladas</SelectItem>
+              </SelectContent>
+            </Select>
+
             {/* Export CSV button */}
             <button
               type="button"
@@ -245,7 +305,7 @@ export default function PilotsTab({
               type="button"
               onClick={openAddModal}
               className="p-2 rounded-lg bg-[#14141F] hover:bg-[#2A2A3D] text-white border border-white/10 shadow-sm transition-colors"
-              title="Adicionar Piloto"
+              title="Adicionar Inscrição"
             >
               <Plus className="w-4 h-4 text-[#E10600]" />
             </button>
@@ -259,8 +319,9 @@ export default function PilotsTab({
               <tr className="border-b border-white/10 bg-[#14141F] text-[11px] font-racing text-gray-400 uppercase tracking-wider">
                 <th className="py-3 px-4 w-24 text-center">Ações</th>
                 <th className="py-3 px-4 w-36">ID iRacing</th>
-                <th className="py-3 px-4 w-28">Número</th>
+                <th className="py-3 px-4 w-24">Número</th>
                 <th className="py-3 px-4">Nome</th>
+                <th className="py-3 px-4">Status Inscrição</th>
                 <th className="py-3 px-4">Equipe</th>
                 <th className="py-3 px-4">Opções de números</th>
               </tr>
@@ -314,6 +375,11 @@ export default function PilotsTab({
                       className="text-xs bg-[#1F1F30] border-white/10 text-white h-7 pl-7 py-1"
                     />
                   </div>
+                </th>
+
+                {/* Status Inscrição Column Empty Filter */}
+                <th className="py-2 px-2 text-center text-[10px] text-gray-500 font-mono">
+                  (filtro acima)
                 </th>
 
                 {/* Equipe filter */}
@@ -392,6 +458,21 @@ export default function PilotsTab({
 
                     {/* Nome */}
                     <td className="py-3 px-4 font-medium text-gray-200">{p.name}</td>
+
+                    {/* Status Inscrição */}
+                    <td className="py-3 px-4">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-racing ${
+                          (p.registration_status || 'aprovada') === 'aprovada'
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : (p.registration_status || 'aprovada') === 'pendente'
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        }`}
+                      >
+                        {p.registration_status || 'aprovada'}
+                      </span>
+                    </td>
 
                     {/* Equipe */}
                     <td className="py-3 px-4 text-gray-300">{p.team || '-'}</td>
@@ -553,6 +634,42 @@ export default function PilotsTab({
                 onChange={(e) => setFormTeam(e.target.value)}
                 className="text-xs bg-[#1F1F30] border-white/10 text-white h-9"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-gray-300">Status da Inscrição *</Label>
+                <Select value={formRegStatus} onValueChange={(val: any) => setFormRegStatus(val)}>
+                  <SelectTrigger className="text-xs bg-[#1F1F30] border-white/10 text-white h-9 font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1F1F30] border-white/10 text-white">
+                    <SelectItem value="aprovada">Aprovada (Oficial)</SelectItem>
+                    <SelectItem value="pendente">Pendente (Aguardando)</SelectItem>
+                    <SelectItem value="recusada">Recusada</SelectItem>
+                    <SelectItem value="cancelada">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-gray-300">Status Financeiro</Label>
+                <Select
+                  value={formPaymentStatus}
+                  onValueChange={(val: any) => setFormPaymentStatus(val)}
+                >
+                  <SelectTrigger className="text-xs bg-[#1F1F30] border-white/10 text-white h-9 font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1F1F30] border-white/10 text-white">
+                    <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="isento">Isento</SelectItem>
+                    <SelectItem value="reembolsado">Reembolsado</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-1">

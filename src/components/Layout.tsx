@@ -46,6 +46,7 @@ export default function Layout() {
       items: [
         { label: 'Início', path: '/', icon: LayoutDashboard },
         { label: 'Campeonatos', path: '/campeonatos', icon: Trophy },
+        { label: 'Séries', path: '/series', icon: Flag },
         { label: 'Temporadas', path: '/temporadas', icon: Calendar },
         { label: 'Anos', path: '/anos', icon: Calendar },
         { label: 'Pilotos', path: '/pilotos', icon: Users },

@@ -631,7 +631,7 @@ export default function ChampionshipForm() {
           }
         }
 
-        // 5. Save / Update championship pilots
+        // 5. Save / Update championship pilots (Inscrições)
         for (const p of champPilots) {
           const pilotData: any = {
             championship_id: champId,
@@ -642,6 +642,8 @@ export default function ChampionshipForm() {
             team: p.team,
             number_options: p.number_options,
             car_class: p.car_class,
+            registration_status: p.registration_status || 'aprovada',
+            payment_status: p.payment_status || 'pago',
           }
 
           if (p.id) {

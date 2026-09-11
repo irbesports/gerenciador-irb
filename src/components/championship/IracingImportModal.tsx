@@ -264,6 +264,8 @@ export function IracingImportModal({
               name: driver.display_name,
               iracing_id: custIdStr,
               car_class: driver.car_class_name,
+              registration_status: 'aprovada',
+              payment_status: 'pago',
             })
             champPilotsByCustId.set(custIdStr, 'created')
           } catch (e) {
