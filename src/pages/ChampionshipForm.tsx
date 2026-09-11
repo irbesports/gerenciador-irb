@@ -24,10 +24,12 @@ import {
   stageRacesService,
   scoringPresetsService,
   championshipPilotsService,
+  seriesService,
   getFileUrl,
 } from '@/services/api'
 import type {
   Season,
+  Series,
   ChampionshipStatus,
   ChampionshipType,
   Car,
@@ -82,6 +84,7 @@ export default function ChampionshipForm() {
   // Basic Details
   const [name, setName] = useState('')
   const [seasonId, setSeasonId] = useState('')
+  const [seriesId, setSeriesId] = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<ChampionshipStatus>('ativo')
   const [championshipType, setChampionshipType] = useState<ChampionshipType>('Road')
@@ -216,6 +219,7 @@ export default function ChampionshipForm() {
 
   // Lookups & loaders
   const [seasons, setSeasons] = useState<Season[]>([])
+  const [seriesList, setSeriesList] = useState<Series[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -223,15 +227,18 @@ export default function ChampionshipForm() {
     const init = async () => {
       try {
         setIsLoading(true)
-        const [sList, allCars, allManus, allTracks, allPilots, allPresets] = await Promise.all([
-          seasonsService.list(),
-          carsService.list(),
-          manufacturersService.list(),
-          tracksService.list(),
-          pilotsService.list(),
-          scoringPresetsService.list(),
-        ])
+        const [sList, sSeriesList, allCars, allManus, allTracks, allPilots, allPresets] =
+          await Promise.all([
+            seasonsService.list(),
+            seriesService.list('ativa'),
+            carsService.list(),
+            manufacturersService.list(),
+            tracksService.list(),
+            pilotsService.list(),
+            scoringPresetsService.list(),
+          ])
         setSeasons(sList)
+        setSeriesList(sSeriesList)
         setCarsList(allCars)
         setManufacturersList(allManus)
         setTracksList(allTracks)
@@ -255,6 +262,7 @@ export default function ChampionshipForm() {
           const champ = await championshipsService.getOne(id)
           setName(champ.name || '')
           setSeasonId(champ.season_id || '')
+          setSeriesId(champ.series_id || '')
           setDescription(champ.description || '')
           setStatus(champ.status || 'ativo')
           setChampionshipType((champ.championship_type as ChampionshipType) || 'Road')
@@ -468,6 +476,16 @@ export default function ChampionshipForm() {
       return
     }
 
+    if (!seriesId) {
+      toast({
+        title: 'Atenção',
+        description: 'Selecione uma "Série" (regra: 1 campeonato = 1 série).',
+        variant: 'destructive',
+      })
+      setActiveTab('detalhes')
+      return
+    }
+
     // REGULAMENTO OBRIGATÓRIO (tradução literal do usuário: "É obrigatório adicionar o regulamento na página de criação do campeonato")
     const hasRegulation =
       regulationText.trim().length > 0 || !!regulationFile || !!existingRegulationFile
@@ -489,6 +507,7 @@ export default function ChampionshipForm() {
       const formData = new FormData()
       formData.append('name', name)
       formData.append('season_id', seasonId)
+      formData.append('series_id', seriesId)
       formData.append('description', description)
       formData.append('status', status)
       formData.append('championship_type', championshipType)
@@ -744,11 +763,50 @@ export default function ChampionshipForm() {
         {activeTab === 'detalhes' && (
           <div className="space-y-6 animate-fade-in">
             <Card className="p-6 bg-[#161622] border border-white/10 rounded-xl shadow-lg space-y-6">
-              {/* Temporada & Status */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5 md:col-span-2">
+              {/* Série, Temporada & Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="series" className="text-xs font-semibold text-gray-300">
+                      Série Vinculada *
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/series')}
+                      className="text-[10px] text-[#E10600] hover:underline"
+                    >
+                      + Gerenciar Séries
+                    </button>
+                  </div>
+                  <Select value={seriesId} onValueChange={setSeriesId}>
+                    <SelectTrigger
+                      id="series"
+                      className="text-xs bg-[#1F1F30] border-white/10 text-white focus:ring-[#E10600] h-10"
+                    >
+                      <SelectValue placeholder="Selecione a Série (Obrigatório)" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1F1F30] border-white/10 text-white">
+                      {seriesList.length === 0 ? (
+                        <SelectItem value="_empty" disabled>
+                          Nenhuma série ativa cadastrada
+                        </SelectItem>
+                      ) : (
+                        seriesList.map((ser) => (
+                          <SelectItem key={ser.id} value={ser.id}>
+                            {ser.name} {ser.short_name ? `(${ser.short_name})` : ''}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-[10px] text-gray-400 block">
+                    Regra Mestre: 1 campeonato = 1 série oficial.
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
                   <Label htmlFor="season" className="text-xs font-semibold text-gray-300">
-                    Temporada
+                    Temporada *
                   </Label>
                   <Select value={seasonId} onValueChange={setSeasonId}>
                     <SelectTrigger

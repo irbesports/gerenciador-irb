@@ -16,6 +16,7 @@ import ChampionshipsList from '@/pages/ChampionshipsList'
 import ChampionshipForm from '@/pages/ChampionshipForm'
 import ChampionshipDetail from '@/pages/ChampionshipDetail'
 
+import SeriesList from '@/pages/SeriesList'
 import YearsList from '@/pages/YearsList'
 import SeasonsList from '@/pages/SeasonsList'
 import SeasonForm from '@/pages/SeasonForm'
@@ -98,6 +99,9 @@ export default function App() {
             <Route path="/campeonatos/novo" element={<ChampionshipForm />} />
             <Route path="/campeonatos/:id" element={<ChampionshipDetail />} />
             <Route path="/campeonatos/:id/editar" element={<ChampionshipForm />} />
+
+            {/* Series */}
+            <Route path="/series" element={<SeriesList />} />
 
             {/* Seasons & Years */}
             <Route path="/anos" element={<YearsList />} />

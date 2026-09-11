@@ -391,7 +391,7 @@ export default function ChampionshipDetail() {
       {/* Header View */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden">
         <div className="space-y-2 z-10">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
               className={`text-xs capitalize font-medium ${
@@ -404,6 +404,22 @@ export default function ChampionshipDetail() {
             >
               {championship.status || 'rascunho'}
             </Badge>
+
+            {championship.expand?.series_id && (
+              <>
+                <span className="text-gray-300">•</span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-red-50 text-[#E10600] border border-red-200">
+                  <Flag className="w-3 h-3 text-[#E10600]" />
+                  <span>Série: {championship.expand.series_id.name}</span>
+                  {championship.expand.series_id.short_name && (
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      ({championship.expand.series_id.short_name})
+                    </span>
+                  )}
+                </span>
+              </>
+            )}
+
             <span className="text-gray-300">•</span>
             <span className="text-xs text-gray-500 font-medium">
               {seasonName} {yearNumber ? `(${yearNumber})` : ''}

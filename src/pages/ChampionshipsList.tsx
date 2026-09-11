@@ -220,6 +220,7 @@ export default function ChampionshipsList() {
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/70 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                   <th className="py-3 px-4">Nome do Campeonato</th>
+                  <th className="py-3 px-4">Série</th>
                   <th className="py-3 px-4">Temporada</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-center">Nº Pilotos</th>
@@ -248,6 +249,16 @@ export default function ChampionshipsList() {
                           <p className="text-[11px] text-gray-500 truncate max-w-md mt-0.5">
                             {champ.description}
                           </p>
+                        )}
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        {champ.expand?.series_id ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#E10600] bg-red-50 px-2 py-0.5 rounded border border-red-100">
+                            {champ.expand.series_id.short_name || champ.expand.series_id.name}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-[11px] italic">Sem série</span>
                         )}
                       </td>
 
