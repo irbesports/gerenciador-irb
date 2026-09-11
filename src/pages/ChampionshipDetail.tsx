@@ -170,7 +170,30 @@ export default function ChampionshipDetail() {
   }, [moderationCases])
 
   // Calculation of standings with real imported race_results + drop scores (descartes) + moderation penalties
+  // Critérios de desempate oficiais:
+  // 1. Total de pontos líquidos (após descartes e penalidades)
+  // 2. Mais vitórias no campeonato (1º lugar em corridas pontuáveis)
+  // 3. Confronto direto da primeira até a última corrida da temporada (mini-ranking apenas das corridas em que ambos participaram)
+  // 4. Persistindo empate: mesma colocação
   const { standings, teamStandings, availableClasses } = React.useMemo(() => {
+    // 1. Mapear cronologia ordenada das corridas da temporada (etapas por order asc, corridas por order asc)
+    const stageOrderMap = new Map<string, { stageOrder: number; stageDate: string }>()
+    stages.forEach((st) => {
+      stageOrderMap.set(st.id, {
+        stageOrder: st.order ?? 0,
+        stageDate: st.date || '',
+      })
+    })
+
+    const sortedRaceIds = [...stageRaces]
+      .sort((a, b) => {
+        const stA = stageOrderMap.get(a.stage_id) || { stageOrder: 0, stageDate: '' }
+        const stB = stageOrderMap.get(b.stage_id) || { stageOrder: 0, stageDate: '' }
+        if (stA.stageOrder !== stB.stageOrder) return stA.stageOrder - stB.stageOrder
+        return (a.order ?? 0) - (b.order ?? 0)
+      })
+      .map((r) => r.id)
+
     // Collect all available classes from raceResults or champPilots
     const classesSet = new Set<string>()
     raceResults.forEach((rr) => {
@@ -273,6 +296,9 @@ export default function ChampionshipDetail() {
       let poles = 0
       let fastestLaps = 0
 
+      // Mapear posição final do piloto por corrida (stage_race_id) para confronto direto
+      const finishPositionsByRace = new Map<string, number>()
+
       if (hasImportedResults) {
         raceScores = driverResults.map((r) => r.total_points ?? 0)
         wins = driverResults.filter((r) =>
@@ -283,6 +309,18 @@ export default function ChampionshipDetail() {
         ).length
         poles = driverResults.filter((r) => r.is_pole).length
         fastestLaps = driverResults.filter((r) => r.is_fastest_lap).length
+
+        driverResults.forEach((r) => {
+          if (r.stage_race_id) {
+            const pos =
+              selectedClassTab !== 'geral'
+                ? r.finish_position_in_class || r.finish_position
+                : r.finish_position
+            if (pos && pos > 0) {
+              finishPositionsByRace.set(r.stage_race_id, pos)
+            }
+          }
+        })
       }
 
       // Apply drop scores (descartes: discard lowest N results)
@@ -312,16 +350,64 @@ export default function ChampionshipDetail() {
         poles,
         fastestLaps,
         racesCount: raceScores.length,
+        finishPositionsByRace,
+        rank: 1, // calculado após ordenação com empates
       }
     })
 
+    // Função de confronto direto entre dois pilotos
+    const compareHeadToHeadPilots = (a: (typeof list)[0], b: (typeof list)[0]): number => {
+      let aAheadCount = 0
+      let bAheadCount = 0
+
+      // Avalia cada corrida da temporada na ordem cronológica em que ambos participaram
+      sortedRaceIds.forEach((raceId) => {
+        const posA = a.finishPositionsByRace.get(raceId)
+        const posB = b.finishPositionsByRace.get(raceId)
+
+        if (posA !== undefined && posB !== undefined) {
+          if (posA < posB) {
+            aAheadCount += 1
+          } else if (posB < posA) {
+            bAheadCount += 1
+          }
+        }
+      })
+
+      // Quem chegou à frente mais vezes fica melhor ranqueado (valor negativo = A na frente)
+      if (bAheadCount !== aAheadCount) {
+        return bAheadCount - aAheadCount
+      }
+      return 0
+    }
+
+    // Ordenação dos pilotos:
+    // 1. Total de pontos (decrescente)
+    // 2. Mais vitórias no campeonato (decrescente)
+    // 3. Confronto direto da 1ª até a última corrida
     list.sort((a, b) => {
       if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
       if (b.wins !== a.wins) return b.wins - a.wins
-      return b.podiums - a.podiums
+      return compareHeadToHeadPilots(a, b)
     })
 
-    // Team Standings calculation (aggregating drivers points and steward penalties per team)
+    // Atribuir colocação (rank) respeitando empates persistentes (mesma colocação)
+    for (let i = 0; i < list.length; i++) {
+      if (i === 0) {
+        list[i].rank = 1
+      } else {
+        const prev = list[i - 1]
+        const curr = list[i]
+        const isTied =
+          curr.totalPoints === prev.totalPoints &&
+          curr.wins === prev.wins &&
+          compareHeadToHeadPilots(prev, curr) === 0
+
+        list[i].rank = isTied ? prev.rank : i + 1
+      }
+    }
+
+    // Team Standings calculation (aggregating drivers points, wins, and race results per team)
     const teamsMap = new Map<
       string,
       {
@@ -332,19 +418,28 @@ export default function ChampionshipDetail() {
         wins: number
         podiums: number
         pilotsCount: number
+        // Para cada corrida, a melhor colocação da equipe nessa corrida
+        bestFinishByRace: Map<string, number>
+        rank: number
       }
     >()
 
     list.forEach((entry) => {
       const teamName = entry.pilot.team_name?.trim() || 'Independente'
-      const existing = teamsMap.get(teamName) || {
-        name: teamName,
-        totalPoints: 0,
-        grossPoints: 0,
-        penaltyPoints: 0,
-        wins: 0,
-        podiums: 0,
-        pilotsCount: 0,
+      let existing = teamsMap.get(teamName)
+      if (!existing) {
+        existing = {
+          name: teamName,
+          totalPoints: 0,
+          grossPoints: 0,
+          penaltyPoints: 0,
+          wins: 0,
+          podiums: 0,
+          pilotsCount: 0,
+          bestFinishByRace: new Map<string, number>(),
+          rank: 1,
+        }
+        teamsMap.set(teamName, existing)
       }
       existing.totalPoints += entry.totalPoints
       existing.grossPoints += entry.grossPoints
@@ -352,17 +447,83 @@ export default function ChampionshipDetail() {
       existing.wins += entry.wins
       existing.podiums += entry.podiums
       existing.pilotsCount += 1
-      teamsMap.set(teamName, existing)
+
+      // Atualiza melhor posição da equipe por corrida
+      entry.finishPositionsByRace.forEach((pos, raceId) => {
+        const currentBest = existing!.bestFinishByRace.get(raceId)
+        if (currentBest === undefined || pos < currentBest) {
+          existing!.bestFinishByRace.set(raceId, pos)
+        }
+      })
     })
+
+    const compareHeadToHeadTeams = (
+      a: ReturnType<typeof teamsMap.get> extends infer T
+        ? T extends undefined
+          ? never
+          : T
+        : never,
+      b: ReturnType<typeof teamsMap.get> extends infer T
+        ? T extends undefined
+          ? never
+          : T
+        : never,
+    ): number => {
+      let aAheadCount = 0
+      let bAheadCount = 0
+
+      sortedRaceIds.forEach((raceId) => {
+        const posA = a.bestFinishByRace.get(raceId)
+        const posB = b.bestFinishByRace.get(raceId)
+
+        if (posA !== undefined && posB !== undefined) {
+          if (posA < posB) {
+            aAheadCount += 1
+          } else if (posB < posA) {
+            bAheadCount += 1
+          }
+        }
+      })
+
+      if (bAheadCount !== aAheadCount) {
+        return bAheadCount - aAheadCount
+      }
+      return 0
+    }
 
     const teamStandings = Array.from(teamsMap.values()).sort((a, b) => {
       if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
       if (b.wins !== a.wins) return b.wins - a.wins
-      return b.podiums - a.podiums
+      return compareHeadToHeadTeams(a, b)
     })
 
+    // Atribuir colocação para equipes respeitando empates persistentes
+    for (let i = 0; i < teamStandings.length; i++) {
+      if (i === 0) {
+        teamStandings[i].rank = 1
+      } else {
+        const prev = teamStandings[i - 1]
+        const curr = teamStandings[i]
+        const isTied =
+          curr.totalPoints === prev.totalPoints &&
+          curr.wins === prev.wins &&
+          compareHeadToHeadTeams(prev, curr) === 0
+
+        teamStandings[i].rank = isTied ? prev.rank : i + 1
+      }
+    }
+
     return { standings: list, teamStandings, availableClasses }
-  }, [champPilots, pilots, championship, raceResults, selectedClassTab, pilotPenaltiesMap])
+  }, [
+    champPilots,
+    pilots,
+    championship,
+    raceResults,
+    selectedClassTab,
+    pilotPenaltiesMap,
+    stages,
+    stageRaces,
+  ])
 
   if (isLoading || !championship) {
     return (
@@ -405,17 +566,11 @@ export default function ChampionshipDetail() {
               {championship.status || 'rascunho'}
             </Badge>
 
-            {championship.expand?.series_id && (
+            {championship.iracing_series_id && (
               <>
                 <span className="text-gray-300">•</span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-red-50 text-[#E10600] border border-red-200">
-                  <Flag className="w-3 h-3 text-[#E10600]" />
-                  <span>Série: {championship.expand.series_id.name}</span>
-                  {championship.expand.series_id.short_name && (
-                    <span className="text-[10px] text-gray-400 font-mono">
-                      ({championship.expand.series_id.short_name})
-                    </span>
-                  )}
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200 font-mono">
+                  <span>Ref. iRacing: {championship.iracing_series_id}</span>
                 </span>
               </>
             )}
@@ -563,13 +718,16 @@ export default function ChampionshipDetail() {
                   </Badge>
                 )}
               </div>
-              <div className="text-[11px] text-gray-500 flex items-center gap-3">
+              <div className="text-[11px] text-gray-500 flex flex-wrap items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200 text-[10px]">
+                  Desempate: 1º Pontos &bull; 2º Vitórias &bull; 3º Confronto direto
+                </span>
                 {championship.drop_scores ? (
-                  <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-medium">
-                    Descartes aplicados: {championship.drop_scores} pior(es) resultado(s)
+                  <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-medium text-[10px]">
+                    Descartes: {championship.drop_scores} pior(es) resultado(s)
                   </span>
                 ) : (
-                  <span>Sem descartes aplicados</span>
+                  <span className="text-[10px]">Sem descartes</span>
                 )}
               </div>
             </div>
@@ -611,16 +769,16 @@ export default function ChampionshipDetail() {
                         <td className="py-3 px-4 text-center">
                           <span
                             className={`inline-flex items-center justify-center w-6 h-6 rounded-md font-racing font-bold text-xs ${
-                              i === 0
+                              row.rank === 1
                                 ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                : i === 1
+                                : row.rank === 2
                                   ? 'bg-slate-200 text-slate-800'
-                                  : i === 2
+                                  : row.rank === 3
                                     ? 'bg-amber-800/20 text-amber-900'
                                     : 'text-gray-500'
                             }`}
                           >
-                            {i + 1}º
+                            {row.rank}º
                           </span>
                         </td>
 
@@ -698,9 +856,14 @@ export default function ChampionshipDetail() {
                   Classificação Oficial por Equipes
                 </h3>
               </div>
-              <span className="text-[11px] text-gray-500">
-                Soma da pontuação líquida e punições atribuídas aos pilotos de cada equipe
-              </span>
+              <div className="text-[11px] text-gray-500 flex flex-wrap items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200 text-[10px]">
+                  Desempate: 1º Pontos &bull; 2º Vitórias &bull; 3º Confronto direto
+                </span>
+                <span className="text-[10px]">
+                  Soma da pontuação líquida e punições dos pilotos
+                </span>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -730,16 +893,16 @@ export default function ChampionshipDetail() {
                         <td className="py-3 px-4 text-center">
                           <span
                             className={`inline-flex items-center justify-center w-6 h-6 rounded-md font-racing font-bold text-xs ${
-                              idx === 0
+                              team.rank === 1
                                 ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                : idx === 1
+                                : team.rank === 2
                                   ? 'bg-slate-200 text-slate-800'
-                                  : idx === 2
+                                  : team.rank === 3
                                     ? 'bg-amber-800/20 text-amber-900'
                                     : 'text-gray-500'
                             }`}
                           >
-                            {idx + 1}º
+                            {team.rank}º
                           </span>
                         </td>
                         <td className="py-3 px-4 font-bold text-gray-900">{team.name}</td>

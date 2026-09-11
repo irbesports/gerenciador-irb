@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T12:02:48.845Z",
+  "generatedAt": "2026-09-11T12:34:28.734Z",
   "collections": [
     {
       "name": "users",
@@ -355,11 +355,10 @@
           "system": false
         },
         {
-          "name": "series_id",
-          "type": "relation",
+          "name": "iracing_series_id",
+          "type": "text",
           "required": false,
-          "system": false,
-          "collectionRef": "series"
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX idx_championships_season_id ON championships (season_id)"]
@@ -2153,57 +2152,6 @@
         "CREATE INDEX idx_notif_pilot ON notifications (recipient_pilot_id)",
         "CREATE INDEX idx_notif_read ON notifications (read)"
       ]
-    },
-    {
-      "name": "series",
-      "type": "base",
-      "apiRules": {
-        "list": "",
-        "view": "",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
-        "delete": "@request.auth.id != \"\""
-      },
-      "fields": [
-        {
-          "name": "name",
-          "type": "text",
-          "required": true,
-          "system": false
-        },
-        {
-          "name": "short_name",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "description",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "iracing_series_id",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "logo",
-          "type": "file",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "status",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": ["ativa", "inativa"]
-        }
-      ],
-      "indexes": []
     }
   ]
 }

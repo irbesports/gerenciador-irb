@@ -43,20 +43,9 @@ export interface MultiClassScoringConfig {
 
 export type ChampionshipStagesScoring = SingleScoringConfig | MultiClassScoringConfig[]
 
-export type SeriesStatus = 'ativa' | 'inativa'
-
-export interface Series extends RecordModel {
-  name: string
-  short_name?: string
-  description?: string
-  iracing_series_id?: string
-  logo?: string
-  status?: SeriesStatus
-}
-
 export interface Championship extends RecordModel {
   season_id: string
-  series_id?: string
+  iracing_series_id?: string
   name: string
   description?: string
   status?: ChampionshipStatus
@@ -91,7 +80,6 @@ export interface Championship extends RecordModel {
         year_id?: Year
       }
     }
-    series_id?: Series
     cars?: Car[]
   }
 }

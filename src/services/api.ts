@@ -3,7 +3,6 @@ import type {
   Year,
   Season,
   Championship,
-  Series,
   ScoringRule,
   Pilot,
   Infraction,
@@ -178,29 +177,6 @@ export const scoringPresetsService = {
   },
 }
 
-// Series Service (Entidade SÉRIE: 1 campeonato = 1 série)
-export const seriesService = {
-  list: async (statusFilter?: string) => {
-    const filter = statusFilter ? `status = "${statusFilter}"` : ''
-    return await pb.collection('series').getFullList<Series>({
-      filter,
-      sort: 'name',
-    })
-  },
-  getOne: async (id: string) => {
-    return await pb.collection('series').getOne<Series>(id)
-  },
-  create: async (data: Partial<Series>) => {
-    return await pb.collection('series').create<Series>(data)
-  },
-  update: async (id: string, data: Partial<Series>) => {
-    return await pb.collection('series').update<Series>(id, data)
-  },
-  delete: async (id: string) => {
-    return await pb.collection('series').delete(id)
-  },
-}
-
 // Championship Pilots / Inscrições
 // Estados: pendente, aprovada, recusada, cancelada
 // Visão Derivada de Inscritos = apenas inscrições com registration_status === 'aprovada'
@@ -262,12 +238,12 @@ export const championshipsService = {
     return await pb.collection('championships').getFullList<Championship>({
       filter,
       sort: '-created',
-      expand: 'season_id,season_id.year_id,series_id',
+      expand: 'season_id,season_id.year_id',
     })
   },
   getOne: async (id: string) => {
     return await pb.collection('championships').getOne<Championship>(id, {
-      expand: 'season_id,season_id.year_id,series_id',
+      expand: 'season_id,season_id.year_id',
     })
   },
   create: async (data: Partial<Championship>) => {
