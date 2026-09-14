@@ -89,12 +89,19 @@ export interface Championship extends RecordModel {
 export type StageDurationType = 'Minutos' | 'Voltas'
 export type StageStatus = 'Agendada' | 'Em andamento' | 'Finalizada'
 
+export type ChampionshipEditionStatus =
+  | 'planejada'
+  | 'em_andamento'
+  | 'encerrada'
+  | 'cancelada'
+  | ChampionshipStatus
+
 export interface ChampionshipEdition extends RecordModel {
   championship_id: string
   season_id: string
   edition_code?: string
   custom_title?: string
-  status: ChampionshipStatus
+  status: ChampionshipEditionStatus
   start_date?: string
   end_date?: string
   visible_to_pilots?: boolean

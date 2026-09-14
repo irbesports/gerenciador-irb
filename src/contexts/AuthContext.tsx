@@ -47,8 +47,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setUser(null)
       }
-    } catch {
-      setUser(mapRecordToUser(pb.authStore.record))
+    } catch (err: any) {
+      if (err?.status === 404) {
+        // Usuário foi excluído ou o ID armazenado no localStorage não existe mais
+        pb.authStore.clear()
+        setUser(null)
+      } else {
+        setUser(mapRecordToUser(pb.authStore.record))
+      }
     }
   }
 

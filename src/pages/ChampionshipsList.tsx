@@ -60,16 +60,7 @@ export default function ChampionshipsList() {
         seasonsService.list(),
         yearsService.list(),
         pilotsService.list(),
-        championshipEditionService.listBySeason('').catch(async () => {
-          // buscar todas as edições existentes no novo domínio
-          const pbModule = await import('@/lib/pocketbase/client')
-          return await pbModule.pb
-            .collection('championship_editions')
-            .getFullList<ChampionshipEdition>({
-              sort: '-created',
-              expand: 'championship_id,season_id,season_id.year_id',
-            })
-        }),
+        championshipEditionService.listAll().catch(() => []),
       ])
       setChampionships(c)
       setEditions(eds)

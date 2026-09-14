@@ -31,7 +31,7 @@ export default function SeasonsList() {
         seasonsService.list(),
         yearsService.list(),
         championshipsService.list(),
-        championshipEditionService.list().catch(() => []),
+        championshipEditionService.listAll().catch(() => []),
       ])
       setSeasons(s)
       setYears(y)

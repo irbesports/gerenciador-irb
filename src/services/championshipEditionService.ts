@@ -3,6 +3,13 @@ import type { ChampionshipEdition } from '@/types'
 import { domainAuditService } from './domainAuditService'
 
 export const championshipEditionService = {
+  listAll: async () => {
+    return await pb.collection('championship_editions').getFullList<ChampionshipEdition>({
+      sort: '-created',
+      expand: 'championship_id,season_id,season_id.year_id',
+    })
+  },
+
   listBySeason: async (seasonId: string) => {
     return await pb.collection('championship_editions').getFullList<ChampionshipEdition>({
       filter: `season_id = "${seasonId}"`,
