@@ -226,6 +226,17 @@ export interface RaceImport extends RecordModel {
   }
 }
 
+/**
+ * RaceResultRecord representa o registro persistido na coleção `race_results`.
+ *
+ * NOTA DE ARQUITETURA ESPORTIVA IRB:
+ * A coleção `race_results` é uma camada existente e legada de resultados importados e
+ * normalizados a partir da telemetria bruta do iRacing (race_imports).
+ * Ela NÃO deve ser tratada automaticamente como resultado oficial final ou homologado da liga IRB.
+ * O resultado oficial da IRB requer validação desportiva pela direção de prova e comissários,
+ * incluindo aplicação de punições pós-corrida (moderation_cases), descartes de pontuação e
+ * homologação em ata desportiva. Não criar atalhos de "official result" direto nesta camada sem auditoria.
+ */
 export interface RaceResultRecord extends RecordModel {
   race_import_id: string
   stage_race_id: string

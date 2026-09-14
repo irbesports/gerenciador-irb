@@ -376,6 +376,16 @@ export const raceImportsService = {
   },
 }
 
+/**
+ * Serviço de acesso à coleção `race_results`.
+ *
+ * NOTA DE ARQUITETURA ESPORTIVA IRB:
+ * A camada de dados `race_results` é uma camada técnica de resultados importados/normalizados da telemetria
+ * bruta e NÃO deve ser tratada automaticamente como resultado esportivo oficial final da IRB.
+ * O resultado final homologado depende do processo desportivo completo: auditoria de incidentes pelos
+ * comissários, eventuais acréscimos de tempo/perda de posições em `moderation_cases`, aplicação de descartes
+ * e homologação pela diretoria de prova.
+ */
 export const raceResultsService = {
   listByRace: async (stageRaceId: string, onlyActive = true) => {
     const filter = onlyActive

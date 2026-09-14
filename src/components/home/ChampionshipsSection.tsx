@@ -56,14 +56,23 @@ export const ChampionshipsSection: React.FC<ChampionshipsSectionProps> = ({ cham
             >
               <div className="space-y-3">
                 {/* Banner & category */}
-                <div className="relative h-28 w-full rounded-xl overflow-hidden bg-[#1D1D30] border border-white/5">
-                  <img
-                    src={champ.bannerUrl}
-                    alt={champ.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-80"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#151525] via-transparent to-transparent" />
+                <div className="relative h-28 w-full rounded-xl overflow-hidden bg-[#1D1D30] border border-white/5 flex items-center justify-center">
+                  {champ.bannerUrl ? (
+                    <img
+                      src={champ.bannerUrl}
+                      alt={champ.name}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-80"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#1C1C30] to-[#121222] p-4 text-center">
+                      <Trophy className="w-8 h-8 text-[#E10600]/40 group-hover:text-[#E10600] transition-colors" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#151525] via-transparent to-transparent pointer-events-none" />
                   <div className="absolute top-2 left-2 flex items-center gap-1.5">
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-black/60 backdrop-blur-sm text-white px-2 py-0.5 rounded border border-white/10">
                       {champ.category}

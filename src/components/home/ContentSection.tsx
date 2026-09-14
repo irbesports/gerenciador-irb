@@ -53,14 +53,26 @@ export const ContentSection: React.FC<ContentSectionProps> = ({ articles }) => {
             to={featured.url}
             className="lg:col-span-2 group rounded-2xl bg-[#151525] hover:bg-[#1B1B30] border border-[#24243A] hover:border-[#383858] transition-all duration-200 overflow-hidden shadow-lg flex flex-col justify-between"
           >
-            <div className="relative h-56 sm:h-64 w-full overflow-hidden bg-[#1A1A2E]">
-              <img
-                src={featured.imageUrl}
-                alt={featured.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-80"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#151525] via-[#151525]/40 to-transparent" />
+            <div className="relative h-56 sm:h-64 w-full overflow-hidden bg-[#1A1A2E] flex items-center justify-center">
+              {featured.imageUrl ? (
+                <img
+                  src={featured.imageUrl}
+                  alt={featured.title}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                  }}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-80"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#1E1E34] to-[#11111E] p-6 text-center">
+                  <Newspaper className="w-12 h-12 text-[#E10600]/40 group-hover:text-[#E10600] transition-colors mb-2" />
+                  <span className="text-xs font-racing uppercase tracking-wider text-gray-400">
+                    Cobertura Especial IRB
+                  </span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#151525] via-[#151525]/40 to-transparent pointer-events-none" />
               <div className="absolute top-3 left-3">
                 <Badge className="bg-[#E10600] text-white font-bold text-[10px] uppercase tracking-wider">
                   {featured.category}

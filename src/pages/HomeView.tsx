@@ -40,16 +40,18 @@ export default function HomeView() {
 
   const [hasLive, setHasLive] = useState(true)
   const [hasAlert, setHasAlert] = useState(true)
-  const [isDriverSimulated, setIsDriverSimulated] = useState(true)
+  const [isDriverSimulated, setIsDriverSimulated] = useState(false)
   const [dismissedAlertId, setDismissedAlertId] = useState<string | null>(null)
 
-  // Em produção: a autenticação real decide se o usuário é driver/inscrito
-  // Em DEV: o simulador pode alternar entre estado de Driver e visitante
+  // Em produção: a autenticação REAL do usuário é a única fonte de verdade.
+  // Usuário não autenticado = visitante. Usuário autenticado = driver/inscrito.
+  // Em DEV: o simulador StateSimulatorBar permite alternar estados visuais.
   const isDriverActive = isDev ? isDriverSimulated : Boolean(user)
 
-  // Determine current active alert
+  // Determine current active alert (em produção, exige usuário autenticado com pendência real)
   const currentAlert =
-    (isDev ? hasAlert : Boolean(user)) && dismissedAlertId !== mockPriorityAlert.id
+    (isDev ? hasAlert && isDriverSimulated : Boolean(user)) &&
+    dismissedAlertId !== mockPriorityAlert.id
       ? mockPriorityAlert
       : null
 
@@ -65,7 +67,7 @@ export default function HomeView() {
   const handleResetSimulator = () => {
     setHasLive(true)
     setHasAlert(true)
-    setIsDriverSimulated(true)
+    setIsDriverSimulated(false)
     setDismissedAlertId(null)
   }
 

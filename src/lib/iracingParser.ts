@@ -1,14 +1,15 @@
 /**
  * Utilitários para parsing e formatação de arquivos JSON exportados do iRacing.
- * Suporta etapas com 1 ou múltiplas corridas (sessões), conversão de microsegundos,
- * identificação de volta rápida, pole, posições por classe e descarte.
+ * Suporta etapas com 1 corrida ou múltiplas baterias/corridas oficiais (ex: Heat 1 + Feature),
+ * conversão de unidades de tempo do iRacing (1/10.000 de segundo),
+ * identificação de volta rápida, pole position, posições por classe e descarte de pontuação.
  */
 
 export interface IracingSessionDriverResult {
   cust_id: number
   display_name: string
-  finish_position: number // 0-based in raw json, we normalize or expose 1-based display
-  finish_position_in_class: number // 0-based in raw json
+  finish_position: number // 0-based in raw json, normalizado para 1-based display
+  finish_position_in_class: number // 0-based in raw json, normalizado para 1-based display
   starting_position: number
   starting_position_in_class: number
   car_id: number
@@ -17,12 +18,12 @@ export interface IracingSessionDriverResult {
   car_class_name: string
   car_class_short_name: string
   best_lap_num: number
-  best_lap_time: number // in microsegundos, -1 if no time
-  best_lap_time_str: string // format m:ss.mmm
+  best_lap_time: number // Unidades de tempo iRacing (1/10.000 de segundo; 10.000 unidades = 1 segundo). -1 se não houver tempo válido
+  best_lap_time_str: string // Formato m:ss.mmm
   best_qual_lap_num: number
-  best_qual_lap_time: number
+  best_qual_lap_time: number // Unidades de tempo iRacing (1/10.000 de segundo)
   best_qual_lap_time_str: string
-  average_lap: number
+  average_lap: number // Unidades de tempo iRacing (1/10.000 de segundo)
   average_lap_str: string
   laps_complete: number
   laps_lead: number
@@ -65,18 +66,19 @@ export interface IracingParsedFile {
 }
 
 /**
- * Converte tempo em microsegundos do iRacing (ex: 1105665 microsegundos = 110.5665 segundos)
- * para string legível m:ss.mmm. Se <= 0 ou -1, retorna '-'
+ * Converte tempo do iRacing (exportado em décimos de milissegundo / 1/10.000 de segundo,
+ * onde 10.000 unidades equivalem exatamente a 1,0000 segundo.
+ * Exemplo: 1105665 unidades = 110,5665 segundos = 1:50.567) para string legível m:ss.mmm.
+ * Se <= 0 ou indefinido/inválido, retorna '-'
  */
-export function formatIracingTime(microSeconds?: number | null): string {
-  if (microSeconds === undefined || microSeconds === null || microSeconds <= 0) {
+export function formatIracingTime(iracingTimeUnits?: number | null): string {
+  if (iracingTimeUnits === undefined || iracingTimeUnits === null || iracingTimeUnits <= 0) {
     return '-'
   }
-  const totalSeconds = microSeconds / 10000 // In iRacing, best_lap_time 1105665 = 110.566s -> 10000 units per second! Wait, check:
-  // Let's verify: 1105665 / 10000 = 110.5665s = 1m 50s .566 -> exactly Stock Car at Interlagos / Curvelo lap time!
-  // In iRacing API: lap times in event results are in ten-thousandths of a second (100 microseconds / 1/10000th sec).
-  // 1105665 / 10000 = 110.5665s = 1 min 50.566s.
-  // In GT3 (2 corridas): 999540 / 10000 = 99.954s = 1m 39.954s.
+  // No JSON de resultados do iRacing (event results), lap times são expressos em 1/10.000 de segundo (100 µs por unidade).
+  // Ex: 1105665 / 10000 = 110.5665 segundos = 1m 50s 567ms.
+  // Ex: 999540 / 10000 = 99.954 segundos = 1m 39s 954ms.
+  const totalSeconds = iracingTimeUnits / 10000
   return formatSecondsToLap(totalSeconds)
 }
 
@@ -137,33 +139,43 @@ export function parseIracingJson(fileContent: string | object): IracingParsedFil
   }
 
   // Regras DEFINIDAS pela Especificação Mestre de Sessões de Corrida:
-  // - Etapa com 1 corrida: sessão "RACE" = corrida única.
-  // - Etapa com 2 corridas: "HEAT 1" + "FEATURE".
-  // - Etapa com 3 corridas: "HEAT 1" + "FEATURE" + "CONSOLATION".
-  // Sessões Practice/Qualify/Warmup/outras NÃO são corridas de classificação.
+  // Practice, Qualify, Warmup, Test e Time Trial NÃO são corridas oficiais.
+  // Regras de identificação de corridas oficiais:
+  // 1 corrida: "RACE"
+  // 2 corridas: "HEAT 1" + "FEATURE"
+  // 3 corridas: "HEAT 1" + "FEATURE" + "CONSOLATION"
+  // Se nenhuma sessão for reconhecida como corrida: race_sessions deve permanecer vazio.
+  // NÃO usar fallback que transforme all_sessions em race_sessions.
   const NON_RACE_KEYWORDS = ['PRACTICE', 'QUALIFY', 'WARMUP', 'PRACTISE', 'TEST', 'TIME TRIAL']
 
   const all_sessions: IracingParsedSession[] = rawSessions.map((session, sIdx) => {
     const sName = String(session.simsession_name || `Sessão ${sIdx + 1}`).trim()
     const sTypeName = String(session.simsession_type_name || '').trim()
-    const sType = Number(session.simsession_type || 0)
     const upperName = sName.toUpperCase()
     const upperTypeName = sTypeName.toUpperCase()
 
-    // Verificar se é sessão de treino/warmup/qualy explicitamente (nunca é corrida de classificação)
+    // Verificar se é sessão de treino/warmup/qualy/test/time trial explicitamente
     const isNonRace = NON_RACE_KEYWORDS.some(
       (kw) => upperName.includes(kw) || upperTypeName.includes(kw),
     )
 
-    // Regras mestre: RACE, HEAT, FEATURE, CONSOLATION ou simsession_type 6 (Race oficial iRacing)
-    const isMasterRaceSession =
-      !isNonRace &&
-      (upperName === 'RACE' ||
-        upperName.startsWith('HEAT') ||
-        upperName.includes('FEATURE') ||
-        upperName.includes('CONSOLATION') ||
-        sType === 6 ||
-        upperTypeName.includes('RACE'))
+    // Regras de identificação de corrida oficial:
+    // Deve NÃO ser sessão de treino/warmup/qualify/test/time trial E atender aos padrões oficiais de corrida:
+    // - "RACE" (corrida única de 1 corrida ou simsession_name exatamente RACE)
+    // - "HEAT 1" (bateria 1 em formato multicorridas)
+    // - "FEATURE" (corrida principal / feature race em formato multicorridas)
+    // - "CONSOLATION" (corrida de repescagem / consolo em formato 3 corridas)
+    const isOfficialRaceName =
+      upperName === 'RACE' ||
+      upperName === 'HEAT 1' ||
+      upperName.startsWith('HEAT 1 ') ||
+      upperName === 'FEATURE' ||
+      upperName.startsWith('FEATURE ') ||
+      upperName === 'CONSOLATION' ||
+      upperName.startsWith('CONSOLATION ')
+
+    // Caso o nome genérico da simsession_type_name seja 'Race' e não haja nome conflitante
+    const isMasterRaceSession = !isNonRace && isOfficialRaceName
 
     const isRace = isMasterRaceSession
 
@@ -295,9 +307,10 @@ export function parseIracingJson(fileContent: string | object): IracingParsedFil
     }
   })
 
-  // Apenas sessões que representam corridas oficiais (desconsiderando treinos/qualy)
+  // Apenas sessões que representam corridas oficiais (desconsiderando treinos/qualy/warmup/test/time trial).
+  // Conforme especificação: Se nenhuma sessão for reconhecida como corrida, race_sessions deve
+  // permanecer vazio. NÃO usar fallback que transforme all_sessions em race_sessions!
   const race_sessions = all_sessions.filter((s) => s.is_race)
-  const finalRaceSessions = race_sessions.length > 0 ? race_sessions : all_sessions
 
   return {
     subsession_id,
@@ -307,7 +320,7 @@ export function parseIracingJson(fileContent: string | object): IracingParsedFil
     start_time,
     car_classes,
     all_sessions,
-    race_sessions: finalRaceSessions,
+    race_sessions,
   }
 }
 

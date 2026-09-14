@@ -236,6 +236,39 @@ export default function App() {
             }
           />
           <Route
+            path="/resultados/:id"
+            element={
+              <SportsPlaceholderPage
+                title="Súmula Oficial da Etapa"
+                subtitle="Ata completa e detalhada da etapa: telemetria, tempos de volta, posições e penalidades desportivas homologadas."
+                badgeText="SÚMULA OFICIAL"
+                icon="check"
+              />
+            }
+          />
+          <Route
+            path="/conteudo/:slug"
+            element={
+              <SportsPlaceholderPage
+                title="Artigo / Conteúdo Esportivo IRB"
+                subtitle="Notícias, artigos técnicos, transmissões gravadas e comunicados oficiais da liga."
+                badgeText="EDITORIAL IRB"
+                icon="trophy"
+              />
+            }
+          />
+          <Route
+            path="/estatisticas"
+            element={
+              <SportsPlaceholderPage
+                title="Estatísticas & Hall da Fama IRB"
+                subtitle="Recordes históricos, maiores vencedores, estatísticas consolidadas e marcas da liga."
+                badgeText="HALL DA FAMA"
+                icon="award"
+              />
+            }
+          />
+          <Route
             path="/suporte"
             element={
               <SportsPlaceholderPage
