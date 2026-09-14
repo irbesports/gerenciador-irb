@@ -2,7 +2,12 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Calendar, Plus, Trophy, Edit2, Trash2, Eye } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { seasonsService, yearsService, championshipsService } from '@/services/api'
+import {
+  seasonsService,
+  yearsService,
+  championshipsService,
+  championshipEditionService,
+} from '@/services/api'
 import type { Season, Year, Championship } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,18 +22,21 @@ export default function SeasonsList() {
   const [seasons, setSeasons] = useState<Season[]>([])
   const [years, setYears] = useState<Year[]>([])
   const [championships, setChampionships] = useState<Championship[]>([])
+  const [editions, setEditions] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = async () => {
     try {
-      const [s, y, c] = await Promise.all([
+      const [s, y, c, eds] = await Promise.all([
         seasonsService.list(),
         yearsService.list(),
         championshipsService.list(),
+        championshipEditionService.list().catch(() => []),
       ])
       setSeasons(s)
       setYears(y)
       setChampionships(c)
+      setEditions(eds)
     } catch (err) {
       console.error(err)
       toast({
@@ -106,8 +114,11 @@ export default function SeasonsList() {
               <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                 {seasons.map((season) => {
                   const year = years.find((y) => y.id === season.year_id)
-                  const countChamps = championships.filter((c) => c.season_id === season.id).length
-
+                  const seasonEditions = editions.filter((e) => e.season_id === season.id)
+                  const countChamps =
+                    seasonEditions.length > 0
+                      ? seasonEditions.length
+                      : championships.filter((c) => c.season_id === season.id).length
                   return (
                     <tr key={season.id} className="hover:bg-red-50/30 transition-colors">
                       <td className="py-3.5 px-4 font-racing text-sm font-bold text-gray-900">

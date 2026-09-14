@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Plus, Search, Trophy, Award, Shield, Edit2, Trash2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { pilotsService } from '@/services/api'
+import { pilotsService, teamsService } from '@/services/api'
 import type { Pilot } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +32,7 @@ export default function PilotsList() {
   const { toast } = useToast()
 
   const [pilots, setPilots] = useState<Pilot[]>([])
+  const [teams, setTeams] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
@@ -47,8 +48,12 @@ export default function PilotsList() {
 
   const loadPilots = async () => {
     try {
-      const list = await pilotsService.list()
+      const [list, tList] = await Promise.all([
+        pilotsService.list(),
+        teamsService.list().catch(() => []),
+      ])
       setPilots(list)
+      setTeams(tList)
     } catch (err) {
       console.error(err)
       toast({
@@ -388,15 +393,45 @@ export default function PilotsList() {
                   htmlFor="team-name"
                   className="text-xs font-semibold uppercase text-gray-700"
                 >
-                  Nome da Equipe
+                  Equipe Organizacional
                 </Label>
-                <Input
-                  id="team-name"
-                  placeholder="Ex: Scuderia Apex"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  className="bg-[#F5F5F7] text-sm"
-                />
+                {teams.length > 0 ? (
+                  <div className="space-y-1">
+                    <Select
+                      value={teams.some((t) => t.name === teamName) ? teamName : 'custom'}
+                      onValueChange={(val) => {
+                        if (val !== 'custom') setTeamName(val)
+                      }}
+                    >
+                      <SelectTrigger className="text-xs bg-[#F5F5F7]">
+                        <SelectValue placeholder="Selecione ou digite abaixo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {teams.map((t) => (
+                          <SelectItem key={t.id} value={t.name}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="custom">Outro (Digitar nome)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="team-name"
+                      placeholder="Ex: Scuderia Apex"
+                      value={teamName}
+                      onChange={(e) => setTeamName(e.target.value)}
+                      className="bg-[#F5F5F7] text-sm"
+                    />
+                  </div>
+                ) : (
+                  <Input
+                    id="team-name"
+                    placeholder="Ex: Scuderia Apex"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    className="bg-[#F5F5F7] text-sm"
+                  />
+                )}
               </div>
             </div>
 

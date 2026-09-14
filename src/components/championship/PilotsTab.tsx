@@ -192,10 +192,10 @@ export default function PilotsTab({
     const payload: LocalChampPilot = {
       pilot_id: formPilotId || undefined,
       name: formName.trim(),
-      iracing_id: cleanIrId,
-      number: formNumber !== '' ? Number(formNumber) : '',
-      team: formTeam.trim(),
-      number_options: formNumberOptions.trim(),
+      iracing_id: cleanIrId || undefined,
+      number: formNumber !== '' ? Number(formNumber) : undefined,
+      team: formTeam.trim() || undefined,
+      number_options: formNumberOptions.trim() || undefined,
       registration_status: formRegStatus,
       payment_status: formPaymentStatus,
     }

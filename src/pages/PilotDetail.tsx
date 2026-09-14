@@ -20,6 +20,8 @@ import {
   infractionsService,
   championshipsService,
   raceResultsService,
+  teamMembershipsService,
+  driverRepresentationsService,
 } from '@/services/api'
 import type { Pilot, Infraction, Championship, RaceResultRecord } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -55,6 +57,8 @@ export default function PilotDetail() {
   const [infractions, setInfractions] = useState<Infraction[]>([])
   const [championships, setChampionships] = useState<Championship[]>([])
   const [allRaceResults, setAllRaceResults] = useState<RaceResultRecord[]>([])
+  const [teamMemberships, setTeamMemberships] = useState<any[]>([])
+  const [driverRepresentations, setDriverRepresentations] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // Filters for stats: Year, Season, Championship
@@ -77,17 +81,21 @@ export default function PilotDetail() {
       const p = await pilotsService.getOne(id)
       setPilot(p)
 
-      const [infs, champs, results] = await Promise.all([
+      const [infs, champs, results, memberships, reps] = await Promise.all([
         infractionsService.list(),
         championshipsService.list(),
         // Fetch active race results by pilot ID or cust_id
         p.iracing_id
           ? raceResultsService.listByCustId(Number(p.iracing_id), true)
           : raceResultsService.listByPilot(id, true),
+        teamMembershipsService.listByDriver(id).catch(() => []),
+        driverRepresentationsService.listByDriver(id).catch(() => []),
       ])
       setInfractions(infs.filter((i) => i.pilot_id === id))
       setChampionships(champs)
       setAllRaceResults(results)
+      setTeamMemberships(memberships)
+      setDriverRepresentations(reps)
 
       setPilotName(p.name)
       setPilotNumber(p.number ?? '')
@@ -480,6 +488,12 @@ export default function PilotDetail() {
           >
             Histórico Disciplinar ({infractions.length})
           </TabsTrigger>
+          <TabsTrigger
+            value="domain-affiliations"
+            className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#E10600] font-semibold"
+          >
+            Equipes & Representações ({teamMemberships.length + driverRepresentations.length})
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab: Resultados Oficiais iRacing */}
@@ -625,6 +639,106 @@ export default function PilotDetail() {
               })}
             </div>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Equipes Organizacionais & Representações Desportivas (Novo Domínio) */}
+        <TabsContent value="domain-affiliations" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Vínculo Institucional (Team Membership) */}
+            <Card className="p-5 bg-white border border-gray-200 rounded-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <h4 className="font-racing text-sm font-bold text-[#1E1E2F] uppercase">
+                  Vínculos Organizacionais (Equipes)
+                </h4>
+                <Badge variant="outline" className="text-[10px] text-gray-600">
+                  Institucional
+                </Badge>
+              </div>
+              <p className="text-[11px] text-gray-500">
+                Contratos ou afiliações permanentes com organizações desportivas.
+              </p>
+              {teamMemberships.length === 0 ? (
+                <div className="py-6 text-center text-xs text-gray-400 bg-gray-50 rounded-lg">
+                  Nenhum vínculo organizacional ativo registrado.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {teamMemberships.map((m) => (
+                    <div
+                      key={m.id}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <div className="font-semibold text-gray-900">
+                          {m.expand?.team_id?.name || 'Equipe'}
+                        </div>
+                        <div className="text-[10px] text-gray-500 capitalize">Função: {m.role}</div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          m.status === 'ativo'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300 text-[10px]'
+                            : 'bg-gray-100 text-gray-600 text-[10px]'
+                        }
+                      >
+                        {m.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Representação Desportiva por Edição (Driver Championship Representation) */}
+            <Card className="p-5 bg-white border border-gray-200 rounded-xl space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <h4 className="font-racing text-sm font-bold text-[#1E1E2F] uppercase">
+                  Representações em Campeonatos
+                </h4>
+                <Badge variant="outline" className="text-[10px] text-[#E10600] border-red-200">
+                  Por Edição
+                </Badge>
+              </div>
+              <p className="text-[11px] text-gray-500">
+                Escalação desportiva pontuável em cada edição de campeonato.
+              </p>
+              {driverRepresentations.length === 0 ? (
+                <div className="py-6 text-center text-xs text-gray-400 bg-gray-50 rounded-lg">
+                  Nenhuma representação desportiva registrada em edições.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {driverRepresentations.map((r) => (
+                    <div
+                      key={r.id}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <div className="font-semibold text-gray-900">
+                          {r.expand?.championship_edition_id?.edition_code || 'Edição'}
+                        </div>
+                        <div className="text-[10px] text-gray-500">
+                          {r.expand?.team_participation_id?.name || 'Equipe na Edição'}
+                          {r.expand?.sub_team_id ? ` (${r.expand.sub_team_id.name})` : ''}
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          r.status === 'ativa'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300 text-[10px]'
+                            : 'bg-gray-100 text-gray-600 text-[10px]'
+                        }
+                      >
+                        {r.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Infractions */}

@@ -20,6 +20,10 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import {
   championshipsService,
+  championshipEditionService,
+  stageService,
+  sessionService,
+  registrationService,
   pilotsService,
   scoringRulesService,
   scoringPresetsService,
@@ -80,7 +84,20 @@ export default function ChampionshipDetail() {
   const loadData = async () => {
     if (!id) return
     try {
-      const [champ, pList, rules, infs, stList, cpList, rResults, presets, modCases] =
+      // 1. Tentar carregar ou identificar Championship Edition correspondente ao Championship
+      let domainStages: ChampionshipStage[] = []
+      let domainEditionId = ''
+      try {
+        const editions = await championshipEditionService.listByChampionship(id)
+        if (editions.length > 0) {
+          domainEditionId = editions[0].id
+          domainStages = await stageService.listByEdition(domainEditionId)
+        }
+      } catch (e) {
+        console.warn('Busca de edition falhou, usando fallback:', e)
+      }
+
+      const [champ, pList, rules, infs, legacyStages, cpList, rResults, presets, modCases] =
         await Promise.all([
           championshipsService.getOne(id),
           pilotsService.list(),
@@ -96,15 +113,78 @@ export default function ChampionshipDetail() {
       setPilots(pList)
       setScoringRules(rules)
       setInfractions(infs.filter((inf) => inf.championship_id === id))
-      setStages(stList)
-      setChampPilots(cpList)
+
+      // Preferir stages associadas à Edition do novo domínio
+      const resolvedStages = domainStages.length > 0 ? domainStages : legacyStages
+      setStages(resolvedStages)
+
+      // Se temos registrations no novo domínio da Edition, mesclar com champPilots
+      let mergedPilots = [...cpList]
+      if (domainEditionId) {
+        try {
+          const domainRegs = await registrationService.listByEdition(domainEditionId)
+          if (domainRegs.length > 0) {
+            // Sincronizar inscrições aprovadas do novo domínio
+            domainRegs.forEach((reg) => {
+              const already = mergedPilots.some(
+                (cp) =>
+                  cp.pilot === reg.driver_id ||
+                  (reg.expand?.driver_id?.iracing_id &&
+                    cp.iracing_id === reg.expand.driver_id.iracing_id),
+              )
+              if (!already && reg.expand?.driver_id) {
+                const driver = reg.expand.driver_id
+                mergedPilots.push({
+                  id: reg.id,
+                  championship_id: id,
+                  pilot: driver.id,
+                  name: driver.name,
+                  iracing_id: driver.iracing_id,
+                  number: reg.car_number ?? driver.number,
+                  team: driver.team_name,
+                  car_class: reg.car_class,
+                  registration_status: reg.status,
+                  payment_status: reg.payment_status || 'pago',
+                } as any)
+              }
+            })
+          }
+        } catch (regErr) {
+          console.warn('Erro ao carregar registrations da edition:', regErr)
+        }
+      }
+
+      setChampPilots(mergedPilots)
       setRaceResults(rResults)
       setScoringPresets(presets)
       setModerationCases(modCases)
 
-      // Load all races for all stages
+      // Load all races/sessions for all stages
       const allRaces: StageRace[] = []
-      for (const st of stList) {
+      for (const st of resolvedStages) {
+        // Tentar obter do novo domínio sessionService
+        try {
+          const sessions = await sessionService.listByStage(st.id)
+          if (sessions.length > 0) {
+            sessions.forEach((s) => {
+              allRaces.push({
+                id: s.id,
+                stage_id: st.id,
+                order: s.order,
+                duration_type:
+                  (s.duration_type === 'Horas' ? 'Minutos' : s.duration_type) || 'Minutos',
+                duration: s.duration,
+                name: s.name,
+                inverted_positions: s.inverted_positions,
+                created: s.created,
+                updated: s.updated,
+              } as any)
+            })
+            continue
+          }
+        } catch {
+          /* intentionally ignored */
+        }
         const races = await stageRacesService.listByStage(st.id)
         allRaces.push(...races)
       }
