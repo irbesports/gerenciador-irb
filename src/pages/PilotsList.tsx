@@ -212,7 +212,7 @@ export default function PilotsList() {
             return (
               <Card
                 key={p.id}
-                onClick={() => navigate(`/pilotos/${p.id}`)}
+                onClick={() => navigate(`/dashboard/pilotos/${p.id}`)}
                 className="racing-card overflow-hidden border border-gray-200 bg-white cursor-pointer relative group"
               >
                 <div className="p-5 space-y-4">

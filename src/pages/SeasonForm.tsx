@@ -83,7 +83,7 @@ export default function SeasonForm() {
         toast({ title: 'Sucesso', description: 'Nova temporada cadastrada!' })
       }
 
-      navigate('/temporadas')
+      navigate('/dashboard/temporadas')
     } catch (err: any) {
       console.error(err)
       toast({
@@ -102,7 +102,7 @@ export default function SeasonForm() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/temporadas')}
+          onClick={() => navigate('/dashboard/temporadas')}
           className="text-xs text-gray-500 hover:text-gray-900"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />
@@ -200,7 +200,7 @@ export default function SeasonForm() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate('/temporadas')}
+            onClick={() => navigate('/dashboard/temporadas')}
             className="text-xs"
           >
             Cancelar

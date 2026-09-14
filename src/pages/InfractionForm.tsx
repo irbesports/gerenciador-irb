@@ -75,7 +75,7 @@ export default function InfractionForm() {
         title: 'Sucesso',
         description: 'Infração registrada e enviada para o tribunal de comissários.',
       })
-      navigate('/infracoes')
+      navigate('/dashboard/infracoes')
     } catch (err: any) {
       console.error(err)
       toast({
@@ -94,7 +94,7 @@ export default function InfractionForm() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/infracoes')}
+          onClick={() => navigate('/dashboard/infracoes')}
           className="text-xs text-gray-500 hover:text-gray-900"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />
@@ -208,7 +208,7 @@ export default function InfractionForm() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate('/infracoes')}
+            onClick={() => navigate('/dashboard/infracoes')}
             className="text-xs"
           >
             Cancelar

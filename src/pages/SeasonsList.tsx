@@ -71,7 +71,7 @@ export default function SeasonsList() {
 
         {isCollaborator && (
           <Button
-            onClick={() => navigate('/temporadas/novo')}
+            onClick={() => navigate('/dashboard/temporadas/novo')}
             className="bg-[#E10600] hover:bg-[#C00500] text-white text-xs font-semibold shadow-sm btn-checkered-sweep"
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -113,7 +113,7 @@ export default function SeasonsList() {
                       <td className="py-3.5 px-4 font-racing text-sm font-bold text-gray-900">
                         {year ? (
                           <Link
-                            to="/anos"
+                            to="/dashboard/anos"
                             className="text-gray-800 hover:text-[#E10600] underline decoration-gray-300"
                           >
                             {year.year}
@@ -166,7 +166,9 @@ export default function SeasonsList() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => navigate(`/temporadas/${season.id}/editar`)}
+                                onClick={() =>
+                                  navigate(`/dashboard/temporadas/${season.id}/editar`)
+                                }
                                 className="h-7 w-7 text-gray-500 hover:text-blue-600"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />

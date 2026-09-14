@@ -633,7 +633,7 @@ export const notificationsService = {
       penaltyApplied,
     } = params
 
-    const targetLink = `/moderacao/caso/${caseRecord.id}`
+    const targetLink = `/dashboard/moderacao/caso/${caseRecord.id}`
     const involvedNames = involvedPilotRecords
       .map((p) => `#${p.number ?? ''} ${p.name || ''}`.trim())
       .filter(Boolean)
@@ -691,7 +691,7 @@ export const notificationsService = {
     rulingText: string
   }) => {
     const { caseRecord, involvedPilotRecords, status, rulingText } = params
-    const targetLink = `/moderacao/caso/${caseRecord.id}`
+    const targetLink = `/dashboard/moderacao/caso/${caseRecord.id}`
 
     for (const pilot of involvedPilotRecords) {
       try {

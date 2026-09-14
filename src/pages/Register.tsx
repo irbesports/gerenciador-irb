@@ -21,7 +21,6 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
-  const [role, setRole] = useState<UserRole>('cliente')
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -57,7 +56,6 @@ export default function Register() {
         name,
         email,
         password,
-        role,
       })
 
       toast({
@@ -108,85 +106,19 @@ export default function Register() {
               </Alert>
             )}
 
-            {/* Role Selection Cards */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Selecione seu Perfil
-              </Label>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Cliente */}
-                <div
-                  onClick={() => setRole('cliente')}
-                  className={cn(
-                    'cursor-pointer border-2 rounded-xl p-3.5 transition-all text-left relative flex flex-col justify-between',
-                    role === 'cliente'
-                      ? 'border-[#E10600] bg-red-50/50 shadow-sm'
-                      : 'border-gray-200 hover:border-gray-300 bg-white',
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div
-                      className={cn(
-                        'w-8 h-8 rounded-lg flex items-center justify-center text-sm',
-                        role === 'cliente'
-                          ? 'bg-[#E10600] text-white'
-                          : 'bg-gray-100 text-gray-600',
-                      )}
-                    >
-                      <UserIcon className="w-4 h-4" />
-                    </div>
-                    {role === 'cliente' && (
-                      <div className="w-4 h-4 rounded-full bg-[#E10600] text-white flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5" />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <span className="font-racing font-bold text-sm text-[#1E1E2F] block">
-                      Cliente
-                    </span>
-                    <span className="text-[11px] text-gray-500 leading-tight block mt-0.5">
-                      Piloto participante de etapas e campeonatos
-                    </span>
-                  </div>
-                </div>
-
-                {/* Colaborador */}
-                <div
-                  onClick={() => setRole('colaborador')}
-                  className={cn(
-                    'cursor-pointer border-2 rounded-xl p-3.5 transition-all text-left relative flex flex-col justify-between',
-                    role === 'colaborador'
-                      ? 'border-[#E10600] bg-red-50/50 shadow-sm'
-                      : 'border-gray-200 hover:border-gray-300 bg-white',
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div
-                      className={cn(
-                        'w-8 h-8 rounded-lg flex items-center justify-center text-sm',
-                        role === 'colaborador'
-                          ? 'bg-[#E10600] text-white'
-                          : 'bg-gray-100 text-gray-600',
-                      )}
-                    >
-                      <Shield className="w-4 h-4" />
-                    </div>
-                    {role === 'colaborador' && (
-                      <div className="w-4 h-4 rounded-full bg-[#E10600] text-white flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5" />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <span className="font-racing font-bold text-sm text-[#1E1E2F] block">
-                      Colaborador
-                    </span>
-                    <span className="text-[11px] text-gray-500 leading-tight block mt-0.5">
-                      Equipe técnica, comissários e organizadores
-                    </span>
-                  </div>
-                </div>
+            {/* Info Card: Conta de Competidor / Piloto */}
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3.5 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#E10600] text-white flex items-center justify-center text-sm shrink-0 mt-0.5">
+                <UserIcon className="w-4 h-4" />
+              </div>
+              <div className="text-left">
+                <span className="font-racing font-bold text-sm text-[#1E1E2F] block">
+                  Perfil de Piloto / Competidor
+                </span>
+                <span className="text-xs text-gray-500 leading-tight block mt-0.5">
+                  Seu cadastro dará acesso a inscrições em campeonatos, protestos desportivos,
+                  súmulas e histórico oficial de corridas.
+                </span>
               </div>
             </div>
 

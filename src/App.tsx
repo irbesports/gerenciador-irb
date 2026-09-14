@@ -179,84 +179,147 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />
 
-          {/* Platform Inside Main Carbon Layout (Management system moved to /dashboard) */}
+          {/* Public Sports Pages (Unauthenticated & Authenticated Public IRB View) */}
           <Route
+            path="/campeonatos"
+            element={
+              <SportsPlaceholderPage
+                title="Campeonatos IRB E-Sports"
+                subtitle="Grade completa de competições ativas, copas homologadas e regulamentos esportivos oficiais."
+                badgeText="TEMPORADAS ATIVAS"
+                icon="trophy"
+              />
+            }
+          />
+          <Route
+            path="/campeonatos/:id"
+            element={
+              <SportsPlaceholderPage
+                title="Detalhes do Campeonato"
+                subtitle="Informações oficiais, calendário de etapas, pontuação, tabela de classificação e regulamento particular."
+                badgeText="CAMPEONATO HOMOLOGADO"
+                icon="trophy"
+              />
+            }
+          />
+          <Route
+            path="/pilotos"
+            element={
+              <SportsPlaceholderPage
+                title="Grid de Pilotos Oficiais"
+                subtitle="Perfil oficial de competidores, licenças ativas, estatísticas de pódio e histórico esportivo na liga."
+                badgeText="DRIVERS IRB"
+                icon="shield"
+              />
+            }
+          />
+          <Route
+            path="/pilotos/:id"
+            element={
+              <SportsPlaceholderPage
+                title="Perfil do Piloto"
+                subtitle="Estatísticas oficiais, histórico de resultados em corridas, voltas rápidas e penalidades aplicadas."
+                badgeText="PERFIL ESPORTIVO"
+                icon="shield"
+              />
+            }
+          />
+          <Route
+            path="/pistas"
+            element={
+              <SportsPlaceholderPage
+                title="Circuitos & Autódromos"
+                subtitle="Banco de pistas homologadas para as temporadas iRacing: extensão oficial, configurações e layouts autorizados."
+                badgeText="AUTÓDROMOS HOMOLOGADOS"
+                icon="calendar"
+              />
+            }
+          />
+          <Route
+            path="/suporte"
+            element={
+              <SportsPlaceholderPage
+                title="Central de Suporte IRB"
+                subtitle="Canal oficial de atendimento a pilotos, dúvidas regulamentares, homologações e solicitações à diretoria de prova."
+                badgeText="ATENDIMENTO AO COMPETIDOR"
+                icon="shield"
+              />
+            }
+          />
+
+          {/* Protestos do piloto no fluxo do usuário (protegido por login) */}
+          <Route
+            path="/meus-protestos"
+            element={
+              <ProtectedRoute>
+                <MyProtestsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/protestar"
+            element={
+              <ProtectedRoute>
+                <PilotNewProtestPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Platform Inside Main Carbon Layout (Management system isolated under /dashboard) */}
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <Layout />
               </ProtectedRoute>
             }
           >
-            {/* Dashboard (moved from '/' to '/dashboard' for management) */}
-            <Route path="/dashboard" element={<Index />} />
+            {/* Dashboard Home */}
+            <Route index element={<Index />} />
 
-            {/* Championships */}
-            <Route path="/campeonatos" element={<ChampionshipsList />} />
-            <Route path="/campeonatos/novo" element={<ChampionshipForm />} />
-            <Route path="/campeonatos/:id" element={<ChampionshipDetail />} />
-            <Route path="/campeonatos/:id/editar" element={<ChampionshipForm />} />
+            {/* Championships (Gerenciador) */}
+            <Route path="campeonatos" element={<ChampionshipsList />} />
+            <Route path="campeonatos/novo" element={<ChampionshipForm />} />
+            <Route path="campeonatos/:id" element={<ChampionshipDetail />} />
+            <Route path="campeonatos/:id/editar" element={<ChampionshipForm />} />
 
             {/* Seasons & Years */}
-            <Route path="/anos" element={<YearsList />} />
-            <Route path="/temporadas" element={<SeasonsList />} />
-            <Route path="/temporadas/novo" element={<SeasonForm />} />
-            <Route path="/temporadas/:id/editar" element={<SeasonForm />} />
+            <Route path="anos" element={<YearsList />} />
+            <Route path="temporadas" element={<SeasonsList />} />
+            <Route path="temporadas/novo" element={<SeasonForm />} />
+            <Route path="temporadas/:id/editar" element={<SeasonForm />} />
 
             {/* Pilots */}
-            <Route path="/pilotos" element={<PilotsList />} />
-            <Route path="/pilotos/:id" element={<PilotDetail />} />
+            <Route path="pilotos" element={<PilotsList />} />
+            <Route path="pilotos/:id" element={<PilotDetail />} />
 
             {/* Financial */}
-            <Route path="/financeiro" element={<FinancialDashboard />} />
-            <Route path="/financeiro/cobrancas/novo" element={<InvoiceForm />} />
-            <Route path="/financeiro/cobrancas/:id" element={<InvoiceDetail />} />
-            <Route path="/financeiro/cobrancas/:id/editar" element={<InvoiceForm />} />
+            <Route path="financeiro" element={<FinancialDashboard />} />
+            <Route path="financeiro/cobrancas/novo" element={<InvoiceForm />} />
+            <Route path="financeiro/cobrancas/:id" element={<InvoiceDetail />} />
+            <Route path="financeiro/cobrancas/:id/editar" element={<InvoiceForm />} />
 
             {/* Support */}
-            <Route path="/suporte" element={<SupportList />} />
-            <Route path="/suporte/:id" element={<SupportDetail />} />
+            <Route path="suporte" element={<SupportList />} />
+            <Route path="suporte/:id" element={<SupportDetail />} />
 
             {/* Infractions & Moderation */}
-            <Route path="/infracoes" element={<InfractionsList />} />
-            <Route path="/infracoes/novo" element={<InfractionForm />} />
-            <Route path="/moderacao" element={<ModerationList />} />
-            <Route
-              path="/moderacao/central-de-provas"
-              element={
-                <ProtectedRoute>
-                  <StewardsHubPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/moderacao/corrida/:raceId"
-              element={
-                <ProtectedRoute>
-                  <RaceModerationPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/moderacao/caso/:id"
-              element={
-                <ProtectedRoute>
-                  <ModerationCaseDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/pontuacao" element={<ScoringSystemPage />} />
+            <Route path="infracoes" element={<InfractionsList />} />
+            <Route path="infracoes/novo" element={<InfractionForm />} />
+            <Route path="moderacao" element={<ModerationList />} />
+            <Route path="moderacao/central-de-provas" element={<StewardsHubPage />} />
+            <Route path="moderacao/corrida/:raceId" element={<RaceModerationPage />} />
+            <Route path="moderacao/caso/:id" element={<ModerationCaseDetail />} />
+            <Route path="pontuacao" element={<ScoringSystemPage />} />
 
-            {/* Protestos Desportivos do Piloto */}
-            <Route path="/protestar" element={<PilotNewProtestPage />} />
-            <Route path="/meus-protestos" element={<MyProtestsPage />} />
             {/* Reference Data */}
-            <Route path="/montadoras" element={<ManufacturersList />} />
-            <Route path="/carros" element={<CarsList />} />
-            <Route path="/pistas" element={<TracksList />} />
+            <Route path="montadoras" element={<ManufacturersList />} />
+            <Route path="carros" element={<CarsList />} />
+            <Route path="pistas" element={<TracksList />} />
 
             {/* Admin Console (Collaborator Only) */}
             <Route
-              path="/admin"
+              path="admin"
               element={
                 <ProtectedRoute requireCollaborator>
                   <AdminDashboard />
@@ -267,6 +330,9 @@ export default function App() {
             {/* 404 Inside Layout */}
             <Route path="*" element={<NotFound />} />
           </Route>
+
+          {/* Fallback global 404 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />
       </Router>

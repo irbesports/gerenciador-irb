@@ -248,7 +248,7 @@ export default function StewardsHubPage() {
       return
     }
 
-    navigate(`/moderacao/corrida/${selectedRaceId}`)
+    navigate(`/dashboard/moderacao/corrida/${selectedRaceId}`)
   }
 
   const renderStageCard = (item: StageCardItem, isTodaySection = false) => {

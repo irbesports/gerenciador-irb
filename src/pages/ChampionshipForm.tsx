@@ -664,7 +664,7 @@ export default function ChampionshipForm() {
           : 'Campeonato criado com sucesso!',
       })
 
-      navigate(champId ? `/campeonatos/${champId}` : '/campeonatos')
+      navigate(champId ? `/dashboard/campeonatos/${champId}` : '/dashboard/campeonatos')
     } catch (err: any) {
       console.error(err)
       toast({
@@ -689,7 +689,7 @@ export default function ChampionshipForm() {
           variant="ghost"
           size="sm"
           type="button"
-          onClick={() => navigate('/campeonatos')}
+          onClick={() => navigate('/dashboard/campeonatos')}
           className="text-xs text-gray-400 hover:text-white hover:bg-white/5"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1 text-[#E10600]" />
@@ -1392,7 +1392,7 @@ export default function ChampionshipForm() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate('/campeonatos')}
+            onClick={() => navigate('/dashboard/campeonatos')}
             className="text-xs bg-transparent border-white/15 text-gray-300 hover:bg-white/5"
           >
             Cancelar

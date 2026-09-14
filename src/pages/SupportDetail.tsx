@@ -135,7 +135,7 @@ export default function SupportDetail() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/suporte')}
+          onClick={() => navigate('/dashboard/suporte')}
           className="text-xs text-gray-500 hover:text-gray-900"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />

@@ -470,7 +470,7 @@ export default function StagesTab({
                                 onClick={() => {
                                   const firstRace = st.races[0]
                                   if (firstRace?.id) {
-                                    navigate(`/moderacao/corrida/${firstRace.id}`)
+                                    navigate(`/dashboard/moderacao/corrida/${firstRace.id}`)
                                   } else {
                                     alert(
                                       'Esta etapa ainda possui corridas não salvas no banco. Salve as alterações do campeonato primeiro para abrir o painel de moderação da prova.',
@@ -625,7 +625,9 @@ export default function StagesTab({
                                           type="button"
                                           variant="ghost"
                                           size="sm"
-                                          onClick={() => navigate(`/moderacao/corrida/${rc.id}`)}
+                                          onClick={() =>
+                                            navigate(`/dashboard/moderacao/corrida/${rc.id}`)
+                                          }
                                           className="text-[11px] text-amber-400 hover:text-amber-300 p-1.5 h-7"
                                           title="Moderar Corrida"
                                         >

@@ -96,7 +96,7 @@ export default function SupportList() {
       setIsModalOpen(false)
       setSubject('')
       setContent('')
-      navigate(`/suporte/${created.id}`)
+      navigate(`/dashboard/suporte/${created.id}`)
     } catch (err: any) {
       console.error(err)
       toast({
@@ -164,7 +164,7 @@ export default function SupportList() {
                   return (
                     <tr
                       key={t.id}
-                      onClick={() => navigate(`/suporte/${t.id}`)}
+                      onClick={() => navigate(`/dashboard/suporte/${t.id}`)}
                       className="hover:bg-red-50/30 cursor-pointer transition-colors group"
                     >
                       <td className="py-3.5 px-4 font-semibold text-gray-900 group-hover:text-[#E10600]">

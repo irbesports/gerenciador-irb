@@ -44,39 +44,43 @@ export default function Layout() {
     {
       title: 'Geral',
       items: [
-        { label: 'Painel Geral', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Campeonatos', path: '/campeonatos', icon: Trophy },
-        { label: 'Temporadas', path: '/temporadas', icon: Calendar },
-        { label: 'Anos', path: '/anos', icon: Calendar },
-        { label: 'Pilotos', path: '/pilotos', icon: Users },
-        { label: 'Montadoras', path: '/montadoras', icon: Building2 },
-        { label: 'Carros', path: '/carros', icon: Car },
-        { label: 'Pistas', path: '/pistas', icon: MapPin },
+        { label: 'Painel Geral', path: '/dashboard', icon: LayoutDashboard, exact: true },
+        { label: 'Campeonatos', path: '/dashboard/campeonatos', icon: Trophy },
+        { label: 'Temporadas', path: '/dashboard/temporadas', icon: Calendar },
+        { label: 'Anos', path: '/dashboard/anos', icon: Calendar },
+        { label: 'Pilotos', path: '/dashboard/pilotos', icon: Users },
+        { label: 'Montadoras', path: '/dashboard/montadoras', icon: Building2 },
+        { label: 'Carros', path: '/dashboard/carros', icon: Car },
+        { label: 'Pistas', path: '/dashboard/pistas', icon: MapPin },
       ],
     },
     {
       title: 'Gestão Desportiva',
       items: [
-        { label: 'Central de Provas', path: '/moderacao/central-de-provas', icon: ShieldCheck },
-        { label: 'Casos & Protestos', path: '/moderacao', icon: AlertTriangle },
+        {
+          label: 'Central de Provas',
+          path: '/dashboard/moderacao/central-de-provas',
+          icon: ShieldCheck,
+        },
+        { label: 'Casos & Protestos', path: '/dashboard/moderacao', icon: AlertTriangle },
         { label: 'Meus Protestos', path: '/meus-protestos', icon: Scale },
-        { label: 'Infrações', path: '/infracoes', icon: ShieldCheck },
-        { label: 'Pontuação', path: '/pontuacao', icon: Award },
+        { label: 'Infrações', path: '/dashboard/infracoes', icon: ShieldCheck },
+        { label: 'Pontuação', path: '/dashboard/pontuacao', icon: Award },
       ],
     },
     {
       title: 'Financeiro',
-      items: [{ label: 'Financeiro', path: '/financeiro', icon: DollarSign }],
+      items: [{ label: 'Financeiro', path: '/dashboard/financeiro', icon: DollarSign }],
     },
     {
       title: 'Suporte',
-      items: [{ label: 'Suporte', path: '/suporte', icon: HelpCircle }],
+      items: [{ label: 'Suporte', path: '/dashboard/suporte', icon: HelpCircle }],
     },
     ...(isCollaborator
       ? [
           {
             title: 'Administração',
-            items: [{ label: 'Painel Admin', path: '/admin', icon: Settings }],
+            items: [{ label: 'Painel Admin', path: '/dashboard/admin', icon: Settings }],
           },
         ]
       : []),
@@ -118,8 +122,9 @@ export default function Layout() {
               const isActive =
                 item.path === '/dashboard'
                   ? location.pathname === '/dashboard'
-                  : item.path === '/'
-                    ? location.pathname === '/'
+                  : item.path === '/dashboard/moderacao'
+                    ? location.pathname === '/dashboard/moderacao' ||
+                      location.pathname.startsWith('/dashboard/moderacao/caso/')
                     : location.pathname.startsWith(item.path)
 
               return (
@@ -306,7 +311,7 @@ export default function Layout() {
                 v1.2.0-prod
               </span>
               <NavLink
-                to="/suporte"
+                to="/dashboard/suporte"
                 className="hover:text-[#E10600] transition-colors flex items-center gap-1 font-medium"
               >
                 <HelpCircle className="w-3.5 h-3.5" />

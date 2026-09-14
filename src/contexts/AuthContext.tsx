@@ -12,7 +12,7 @@ interface AuthContextType {
     name: string
     email: string
     password: string
-    role: UserRole
+    role?: UserRole
   }) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -81,14 +81,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string
     email: string
     password: string
-    role: UserRole
+    role?: UserRole
   }) => {
+    // Cadastro público sempre cria role: 'cliente'. O backend também força no hook e nas regras de coleção.
     await pb.collection('users').create({
       email: data.email,
       password: data.password,
       passwordConfirm: data.password,
       name: data.name,
-      role: data.role,
+      role: 'cliente',
     })
   }
 

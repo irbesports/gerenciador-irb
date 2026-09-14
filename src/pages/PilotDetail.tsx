@@ -246,7 +246,7 @@ export default function PilotDetail() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/pilotos')}
+          onClick={() => navigate('/dashboard/pilotos')}
           className="text-xs text-gray-500 hover:text-gray-900"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />

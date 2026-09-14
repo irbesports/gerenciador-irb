@@ -102,7 +102,7 @@ export default function ScoringSystemPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate(`/campeonatos/${selectedChamp.id}/editar`)}
+                  onClick={() => navigate(`/dashboard/campeonatos/${selectedChamp.id}/editar`)}
                   className="text-xs"
                 >
                   Editar Regras

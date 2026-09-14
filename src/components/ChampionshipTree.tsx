@@ -166,7 +166,7 @@ export const ChampionshipTree: React.FC<ChampionshipTreeProps> = ({ treeData, is
                               championships.map((champ) => (
                                 <div
                                   key={champ.id}
-                                  onClick={() => navigate(`/campeonatos/${champ.id}`)}
+                                  onClick={() => navigate(`/dashboard/campeonatos/${champ.id}`)}
                                   className="group flex items-center justify-between p-2 rounded-lg hover:bg-red-50/50 transition-all cursor-pointer border border-transparent hover:border-red-100"
                                 >
                                   <div className="flex items-center gap-2.5 min-w-0">

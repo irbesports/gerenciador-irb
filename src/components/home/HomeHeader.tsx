@@ -179,12 +179,12 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({ liveCount = 1 }) => {
                       className="cursor-pointer hover:bg-white/5 focus:bg-white/5 text-xs text-gray-200"
                     >
                       <UserIcon className="w-4 h-4 mr-2 text-blue-400" />
-                      Meu Perfil Driver
+                      Grid de Pilotos Oficial
                     </DropdownMenuItem>
 
                     {isCollaborator && (
                       <DropdownMenuItem
-                        onClick={() => navigate('/admin')}
+                        onClick={() => navigate('/dashboard/admin')}
                         className="cursor-pointer hover:bg-white/5 focus:bg-white/5 text-xs text-gray-200"
                       >
                         <Award className="w-4 h-4 mr-2 text-purple-400" />

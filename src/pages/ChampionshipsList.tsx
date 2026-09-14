@@ -138,7 +138,7 @@ export default function ChampionshipsList() {
 
         {isCollaborator && (
           <Button
-            onClick={() => navigate('/campeonatos/novo')}
+            onClick={() => navigate('/dashboard/campeonatos/novo')}
             className="bg-[#E10600] hover:bg-[#C00500] text-white text-xs font-semibold shadow-sm btn-checkered-sweep"
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -237,7 +237,7 @@ export default function ChampionshipsList() {
                   return (
                     <tr
                       key={champ.id}
-                      onClick={() => navigate(`/campeonatos/${champ.id}`)}
+                      onClick={() => navigate(`/dashboard/campeonatos/${champ.id}`)}
                       className="hover:bg-red-50/40 cursor-pointer transition-colors group"
                     >
                       <td className="py-3.5 px-4 font-medium text-gray-900 group-hover:text-[#E10600]">
@@ -265,7 +265,7 @@ export default function ChampionshipsList() {
                       <td className="py-3.5 px-4">
                         {season ? (
                           <Link
-                            to={`/temporadas`}
+                            to={`/dashboard/temporadas`}
                             onClick={(e) => e.stopPropagation()}
                             className="text-gray-800 hover:text-[#E10600] font-medium flex items-center gap-1"
                           >
@@ -308,7 +308,7 @@ export default function ChampionshipsList() {
                             size="icon"
                             onClick={(e) => {
                               e.stopPropagation()
-                              navigate(`/campeonatos/${champ.id}`)
+                              navigate(`/dashboard/campeonatos/${champ.id}`)
                             }}
                             className="h-7 w-7 text-gray-500 hover:text-gray-900"
                             title="Ver detalhes"
@@ -323,7 +323,7 @@ export default function ChampionshipsList() {
                                 size="icon"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  navigate(`/campeonatos/${champ.id}/editar`)
+                                  navigate(`/dashboard/campeonatos/${champ.id}/editar`)
                                 }}
                                 className="h-7 w-7 text-gray-500 hover:text-blue-600"
                                 title="Editar campeonato"

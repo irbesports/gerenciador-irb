@@ -211,7 +211,7 @@ export default function YearsList() {
                     <Button
                       variant="link"
                       size="sm"
-                      onClick={() => navigate('/temporadas')}
+                      onClick={() => navigate('/dashboard/temporadas')}
                       className="text-xs text-[#E10600] p-0 h-auto font-semibold hover:underline"
                     >
                       Ver Temporadas →

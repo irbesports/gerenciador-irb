@@ -93,7 +93,7 @@ export default function InvoiceForm() {
         toast({ title: 'Sucesso', description: 'Nova cobrança gerada com sucesso!' })
       }
 
-      navigate('/financeiro')
+      navigate('/dashboard/financeiro')
     } catch (err: any) {
       console.error(err)
       toast({
@@ -112,7 +112,7 @@ export default function InvoiceForm() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/financeiro')}
+          onClick={() => navigate('/dashboard/financeiro')}
           className="text-xs text-gray-500 hover:text-gray-900"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />
@@ -233,7 +233,7 @@ export default function InvoiceForm() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate('/financeiro')}
+            onClick={() => navigate('/dashboard/financeiro')}
             className="text-xs"
           >
             Cancelar

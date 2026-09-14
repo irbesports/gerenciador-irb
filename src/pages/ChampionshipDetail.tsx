@@ -542,7 +542,7 @@ export default function ChampionshipDetail() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/campeonatos')}
+          onClick={() => navigate('/dashboard/campeonatos')}
           className="text-xs text-gray-500 hover:text-gray-900"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />
@@ -596,7 +596,7 @@ export default function ChampionshipDetail() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/campeonatos/${id}/editar`)}
+              onClick={() => navigate(`/dashboard/campeonatos/${id}/editar`)}
               className="text-xs font-semibold text-gray-700 border-gray-300 hover:bg-gray-100"
             >
               <Edit2 className="w-3.5 h-3.5 mr-1 text-[#E10600]" />
@@ -762,7 +762,8 @@ export default function ChampionshipDetail() {
                       <tr
                         key={row.pilot.id || i}
                         onClick={() =>
-                          row.pilot.pilotRecordId && navigate(`/pilotos/${row.pilot.pilotRecordId}`)
+                          row.pilot.pilotRecordId &&
+                          navigate(`/dashboard/pilotos/${row.pilot.pilotRecordId}`)
                         }
                         className="hover:bg-red-50/40 cursor-pointer transition-colors"
                       >
@@ -1046,7 +1047,7 @@ export default function ChampionshipDetail() {
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => navigate(`/moderacao/corrida/${rc.id}`)}
+                                  onClick={() => navigate(`/dashboard/moderacao/corrida/${rc.id}`)}
                                   className="text-[11px] text-[#E10600] hover:text-[#C00500] hover:bg-red-50 p-1.5 h-7 font-racing uppercase"
                                   title="Moderar Prova"
                                 >
@@ -1090,7 +1091,7 @@ export default function ChampionshipDetail() {
               .map((p) => (
                 <Card
                   key={p.id}
-                  onClick={() => p.pilot && navigate(`/pilotos/${p.pilot}`)}
+                  onClick={() => p.pilot && navigate(`/dashboard/pilotos/${p.pilot}`)}
                   className="racing-card p-4 cursor-pointer flex items-center justify-between hover:border-red-300 transition-all bg-white"
                 >
                   <div className="flex items-center gap-3">

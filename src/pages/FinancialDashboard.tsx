@@ -143,7 +143,7 @@ export default function FinancialDashboard() {
         {isCollaborator && (
           <div className="flex items-center gap-2">
             <Button
-              onClick={() => navigate('/financeiro/cobrancas/novo')}
+              onClick={() => navigate('/dashboard/financeiro/cobrancas/novo')}
               className="bg-[#E10600] hover:bg-[#C00500] text-white text-xs font-semibold shadow-sm btn-checkered-sweep"
             >
               <Plus className="w-4 h-4 mr-1.5" />
@@ -319,7 +319,7 @@ export default function FinancialDashboard() {
                       return (
                         <tr
                           key={inv.id}
-                          onClick={() => navigate(`/financeiro/cobrancas/${inv.id}`)}
+                          onClick={() => navigate(`/dashboard/financeiro/cobrancas/${inv.id}`)}
                           className="hover:bg-red-50/30 cursor-pointer transition-colors"
                         >
                           <td className="py-3.5 px-4 font-semibold text-gray-900">
@@ -368,7 +368,7 @@ export default function FinancialDashboard() {
                                 size="icon"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  navigate(`/financeiro/cobrancas/${inv.id}`)
+                                  navigate(`/dashboard/financeiro/cobrancas/${inv.id}`)
                                 }}
                                 className="h-7 w-7 text-gray-500 hover:text-gray-900"
                                 title="Ver Detalhes"
@@ -383,7 +383,7 @@ export default function FinancialDashboard() {
                                     size="icon"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      navigate(`/financeiro/cobrancas/${inv.id}/editar`)
+                                      navigate(`/dashboard/financeiro/cobrancas/${inv.id}/editar`)
                                     }}
                                     className="h-7 w-7 text-gray-500 hover:text-blue-600"
                                     title="Editar"

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T19:34:11.573Z",
+  "generatedAt": "2026-09-14T20:13:00.495Z",
   "collections": [
     {
       "name": "users",
@@ -7,8 +7,8 @@
       "apiRules": {
         "list": "id = @request.auth.id",
         "view": "id = @request.auth.id",
-        "create": "",
-        "update": "id = @request.auth.id",
+        "create": "@request.body.role = \"\" || @request.body.role = \"cliente\" || @request.auth.role = \"colaborador\"",
+        "update": "id = @request.auth.id && (@request.body.role = \"\" || @request.body.role = role || @request.auth.role = \"colaborador\")",
         "delete": "id = @request.auth.id"
       },
       "fields": [
@@ -55,10 +55,10 @@
       "name": "years",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -95,10 +95,10 @@
       "name": "seasons",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -155,10 +155,10 @@
       "name": "championships",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\" && (@request.auth.role = \"colaborador\" || visible_to_pilots = true || visible_to_pilots = null)",
-        "view": "@request.auth.id != \"\" && (@request.auth.role = \"colaborador\" || visible_to_pilots = true || visible_to_pilots = null)",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "@request.auth.role = \"colaborador\" || visible_to_pilots = true || visible_to_pilots = null",
+        "view": "@request.auth.role = \"colaborador\" || visible_to_pilots = true || visible_to_pilots = null",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -367,10 +367,10 @@
       "name": "scoring_rules",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -422,10 +422,10 @@
       "name": "pilots",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
         "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "update": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && user_id = @request.auth.id)",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -503,10 +503,10 @@
       "name": "infractions",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && pilot_id.user_id = @request.auth.id)",
+        "view": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && pilot_id.user_id = @request.auth.id)",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -582,10 +582,10 @@
       "name": "invoices",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && pilot_id.user_id = @request.auth.id)",
+        "view": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && pilot_id.user_id = @request.auth.id)",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -659,10 +659,10 @@
       "name": "payments",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && pilot_id.user_id = @request.auth.id)",
+        "view": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && pilot_id.user_id = @request.auth.id)",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -720,10 +720,10 @@
       "name": "tracks",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -772,10 +772,10 @@
       "name": "manufacturers",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -824,10 +824,10 @@
       "name": "cars",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -883,10 +883,10 @@
       "name": "support_tickets",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
+        "list": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && user_id = @request.auth.id)",
+        "view": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && user_id = @request.auth.id)",
         "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "update": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && user_id = @request.auth.id)",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -944,10 +944,10 @@
       "name": "support_messages",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
+        "list": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && (user_id = @request.auth.id || ticket_id.user_id = @request.auth.id))",
+        "view": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && (user_id = @request.auth.id || ticket_id.user_id = @request.auth.id))",
         "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "update": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && user_id = @request.auth.id)",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -992,10 +992,10 @@
       "name": "championship_batteries",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = \"colaborador\"",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -1066,8 +1066,8 @@
       "name": "scoring_presets",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
         "create": "@request.auth.role = \"colaborador\"",
         "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
@@ -1112,8 +1112,8 @@
       "name": "championship_stages",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
         "create": "@request.auth.role = \"colaborador\"",
         "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
@@ -1201,8 +1201,8 @@
       "name": "stage_races",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
         "create": "@request.auth.role = \"colaborador\"",
         "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
@@ -1567,8 +1567,8 @@
       "name": "race_results",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
+        "list": "",
+        "view": "",
         "create": "@request.auth.role = \"colaborador\"",
         "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
@@ -1840,10 +1840,10 @@
       "name": "moderation_cases",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
+        "list": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && (author_user_id = @request.auth.id || involved_pilots.user_id ?= @request.auth.id || guilty_pilot_id.user_id = @request.auth.id))",
+        "view": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && (author_user_id = @request.auth.id || involved_pilots.user_id ?= @request.auth.id || guilty_pilot_id.user_id = @request.auth.id))",
+        "create": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && opened_by_type = \"protesto_piloto\" && author_user_id = @request.auth.id)",
+        "update": "@request.auth.role = \"colaborador\"",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -2006,10 +2006,10 @@
       "name": "moderation_case_messages",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\" && user_id = @request.auth.id",
+        "list": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && (case_id.author_user_id = @request.auth.id || case_id.involved_pilots.user_id ?= @request.auth.id || case_id.guilty_pilot_id.user_id = @request.auth.id))",
+        "view": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && (case_id.author_user_id = @request.auth.id || case_id.involved_pilots.user_id ?= @request.auth.id || case_id.guilty_pilot_id.user_id = @request.auth.id))",
+        "create": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && user_id = @request.auth.id && is_steward_ruling != true)",
+        "update": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && user_id = @request.auth.id && is_steward_ruling != true)",
         "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
@@ -2073,11 +2073,11 @@
       "name": "notifications",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != \"\"",
-        "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\"",
-        "delete": "@request.auth.id != \"\""
+        "list": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && recipient_user_id = @request.auth.id)",
+        "view": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && recipient_user_id = @request.auth.id)",
+        "create": "@request.auth.role = \"colaborador\" || @request.auth.id != \"\"",
+        "update": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && recipient_user_id = @request.auth.id)",
+        "delete": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && recipient_user_id = @request.auth.id)"
       },
       "fields": [
         {

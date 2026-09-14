@@ -214,7 +214,7 @@ export default function ModerationCaseDetail() {
         <p className="text-sm text-gray-400">Caso não encontrado ou sem permissão de acesso.</p>
         <Button
           variant="outline"
-          onClick={() => navigate('/moderacao')}
+          onClick={() => navigate('/dashboard/moderacao')}
           className="text-xs border-white/10"
         >
           Voltar para Moderação
@@ -260,7 +260,9 @@ export default function ModerationCaseDetail() {
           variant="ghost"
           size="sm"
           type="button"
-          onClick={() => (race?.id ? navigate(`/moderacao/corrida/${race.id}`) : navigate(-1))}
+          onClick={() =>
+            race?.id ? navigate(`/dashboard/moderacao/corrida/${race.id}`) : navigate(-1)
+          }
           className="text-xs text-gray-400 hover:text-white hover:bg-white/5"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1 text-[#E10600]" />

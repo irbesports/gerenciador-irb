@@ -333,7 +333,7 @@ export default function ModerationList() {
                         <tr
                           key={c.id}
                           className="hover:bg-red-50/20 cursor-pointer"
-                          onClick={() => navigate(`/moderacao/caso/${c.id}`)}
+                          onClick={() => navigate(`/dashboard/moderacao/caso/${c.id}`)}
                         >
                           <td className="py-3.5 px-4 font-mono text-[11px] text-[#E10600] font-bold">
                             {c.code || `CASO-#${c.id.slice(0, 6)}`}
@@ -376,7 +376,7 @@ export default function ModerationList() {
                               variant="ghost"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                navigate(`/moderacao/caso/${c.id}`)
+                                navigate(`/dashboard/moderacao/caso/${c.id}`)
                               }}
                               className="text-xs text-[#E10600] font-semibold h-7"
                             >

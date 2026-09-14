@@ -153,7 +153,7 @@ export default function MyProtestsPage() {
                 <tr
                   key={c.id}
                   className="hover:bg-white/5 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/moderacao/caso/${c.id}`)}
+                  onClick={() => navigate(`/dashboard/moderacao/caso/${c.id}`)}
                 >
                   <td className="py-3.5 px-3">
                     <div className="font-mono text-xs font-bold text-[#90e0ef]">
@@ -218,7 +218,7 @@ export default function MyProtestsPage() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => navigate(`/moderacao/caso/${c.id}`)}
+                      onClick={() => navigate(`/dashboard/moderacao/caso/${c.id}`)}
                       className="text-gray-300 hover:text-white h-7 px-2.5 text-xs font-semibold"
                     >
                       Acessar Caso <ChevronRight className="w-3.5 h-3.5 ml-0.5" />

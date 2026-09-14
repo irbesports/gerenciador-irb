@@ -775,7 +775,7 @@ export default function RaceModerationPage() {
         <p className="text-sm text-gray-400">Corrida não encontrada ou sem permissão de acesso.</p>
         <Button
           variant="outline"
-          onClick={() => navigate('/moderacao/central-de-provas')}
+          onClick={() => navigate('/dashboard/moderacao/central-de-provas')}
           className="text-xs border-white/10"
         >
           Voltar para Central de Provas
@@ -978,7 +978,7 @@ export default function RaceModerationPage() {
                     <tr
                       key={c.id}
                       className="hover:bg-white/5 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/moderacao/caso/${c.id}`)}
+                      onClick={() => navigate(`/dashboard/moderacao/caso/${c.id}`)}
                     >
                       {/* Ações por linha: ✓ (resolver), ⊖ (sem ação), ✏️ (editar), 💬 (thread), 🗑 (excluir) */}
                       <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
@@ -1019,7 +1019,7 @@ export default function RaceModerationPage() {
                           {/* 💬 Comentários / Thread */}
                           <button
                             type="button"
-                            onClick={() => navigate(`/moderacao/caso/${c.id}`)}
+                            onClick={() => navigate(`/dashboard/moderacao/caso/${c.id}`)}
                             className="p-1 rounded hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 transition-colors"
                             title="Abrir thread / comentários do caso"
                           >

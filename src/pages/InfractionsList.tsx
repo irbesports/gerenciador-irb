@@ -108,7 +108,7 @@ export default function InfractionsList() {
         </div>
 
         <Button
-          onClick={() => navigate('/infracoes/novo')}
+          onClick={() => navigate('/dashboard/infracoes/novo')}
           className="bg-[#E10600] hover:bg-[#C00500] text-white text-xs font-semibold shadow-sm btn-checkered-sweep"
         >
           <Plus className="w-4 h-4 mr-1.5" />

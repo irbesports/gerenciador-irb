@@ -120,14 +120,14 @@ export default function Index() {
         {isCollaborator && (
           <div className="flex flex-wrap items-center gap-2.5 z-10">
             <Button
-              onClick={() => navigate('/campeonatos/novo')}
+              onClick={() => navigate('/dashboard/campeonatos/novo')}
               className="bg-[#E10600] hover:bg-[#C00500] text-white text-xs font-semibold shadow-sm btn-checkered-sweep"
             >
               <Plus className="w-3.5 h-3.5 mr-1" />
               Novo Campeonato
             </Button>
             <Button
-              onClick={() => navigate('/temporadas/novo')}
+              onClick={() => navigate('/dashboard/temporadas/novo')}
               variant="outline"
               className="border-gray-300 text-gray-700 hover:bg-gray-100 text-xs font-semibold"
             >
@@ -135,7 +135,7 @@ export default function Index() {
               Nova Temporada
             </Button>
             <Button
-              onClick={() => navigate('/pilotos')}
+              onClick={() => navigate('/dashboard/pilotos')}
               variant="outline"
               className="border-gray-300 text-gray-700 hover:bg-gray-100 text-xs font-semibold"
             >
@@ -236,7 +236,7 @@ export default function Index() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/campeonatos')}
+              onClick={() => navigate('/dashboard/campeonatos')}
               className="text-xs text-gray-500 hover:text-[#E10600]"
             >
               Ver todos <ChevronRight className="w-3.5 h-3.5 ml-1" />
@@ -271,7 +271,7 @@ export default function Index() {
                 return (
                   <div
                     key={champ.id}
-                    onClick={() => navigate(`/campeonatos/${champ.id}`)}
+                    onClick={() => navigate(`/dashboard/campeonatos/${champ.id}`)}
                     className="p-4 hover:bg-gray-50 cursor-pointer transition-colors group flex items-center justify-between gap-3"
                   >
                     <div className="space-y-1 min-w-0">
@@ -313,7 +313,7 @@ export default function Index() {
               <Button
                 variant="link"
                 size="sm"
-                onClick={() => navigate('/campeonatos')}
+                onClick={() => navigate('/dashboard/campeonatos')}
                 className="text-xs text-[#E10600] font-semibold hover:underline"
               >
                 Gerenciar Todos os Campeonatos

@@ -171,7 +171,7 @@ export default function InvoiceDetail() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/financeiro')}
+          onClick={() => navigate('/dashboard/financeiro')}
           className="text-xs text-gray-500 hover:text-gray-900"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />
