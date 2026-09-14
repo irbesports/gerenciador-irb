@@ -44,7 +44,7 @@ export default function Layout() {
     {
       title: 'Geral',
       items: [
-        { label: 'Início', path: '/', icon: LayoutDashboard },
+        { label: 'Painel Geral', path: '/dashboard', icon: LayoutDashboard },
         { label: 'Campeonatos', path: '/campeonatos', icon: Trophy },
         { label: 'Temporadas', path: '/temporadas', icon: Calendar },
         { label: 'Anos', path: '/anos', icon: Calendar },
@@ -86,17 +86,19 @@ export default function Layout() {
     <div className="flex flex-col h-full justify-between">
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-2 py-1 mb-6 border-b border-[#2A2A3D] pb-4">
-          <div className="w-10 h-10 rounded-lg bg-[#E10600] flex items-center justify-center text-white shadow-lg shadow-red-900/30 font-racing text-xl font-bold tracking-tighter">
-            <Flag className="w-5 h-5 fill-white" />
-          </div>
-          <div className={cn('flex flex-col', !isMobile && 'hidden lg:flex')}>
-            <span className="font-racing text-lg font-bold tracking-wider text-white uppercase leading-none">
-              Racing
-            </span>
-            <span className="text-xs font-semibold text-[#E10600] tracking-widest uppercase">
-              Manager
-            </span>
+        <div className="flex items-center justify-between px-2 py-1 mb-6 border-b border-[#2A2A3D] pb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-[#E10600] flex items-center justify-center text-white shadow-lg shadow-red-900/30 font-racing text-xl font-bold tracking-tighter shrink-0">
+              <Flag className="w-5 h-5 fill-white" />
+            </div>
+            <div className={cn('flex flex-col', !isMobile && 'hidden lg:flex')}>
+              <span className="font-racing text-lg font-bold tracking-wider text-white uppercase leading-none">
+                Racing
+              </span>
+              <span className="text-xs font-semibold text-[#E10600] tracking-widest uppercase">
+                Manager v0.0.10
+              </span>
+            </div>
           </div>
         </div>
 
@@ -114,9 +116,11 @@ export default function Layout() {
             {section.items.map((item) => {
               const Icon = item.icon
               const isActive =
-                item.path === '/'
-                  ? location.pathname === '/'
-                  : location.pathname.startsWith(item.path)
+                item.path === '/dashboard'
+                  ? location.pathname === '/dashboard'
+                  : item.path === '/'
+                    ? location.pathname === '/'
+                    : location.pathname.startsWith(item.path)
 
               return (
                 <NavLink

@@ -29,6 +29,7 @@ export default function Login() {
     try {
       setIsSubmitting(true)
       await login(email, password)
+      // Navigate to Home IRB or dashboard based on user role/destination
       navigate('/')
     } catch (err: any) {
       console.error(err)
