@@ -25,6 +25,15 @@ import type {
   ModerationCase,
   ModerationCaseMessage,
   AppNotification,
+  ChampionshipEdition,
+  SessionRecord,
+  Team,
+  TeamParticipation,
+  SubTeam,
+  TeamMembership,
+  Registration,
+  DriverChampionshipRepresentation,
+  DomainAuditLog,
 } from '@/types'
 
 // Helper to get file URL
@@ -78,18 +87,57 @@ export const seasonsService = {
   },
 }
 
-// Championship Stages
+// Championship Editions (Championship -> Championship Edition -> Season)
+export const championshipEditionsService = {
+  listBySeason: async (seasonId: string) => {
+    return await pb.collection('championship_editions').getFullList<ChampionshipEdition>({
+      filter: `season_id = "${seasonId}"`,
+      sort: '-created',
+      expand: 'championship_id,season_id,season_id.year_id',
+    })
+  },
+  listByChampionship: async (championshipId: string) => {
+    return await pb.collection('championship_editions').getFullList<ChampionshipEdition>({
+      filter: `championship_id = "${championshipId}"`,
+      sort: '-created',
+      expand: 'championship_id,season_id,season_id.year_id',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('championship_editions').getOne<ChampionshipEdition>(id, {
+      expand: 'championship_id,season_id,season_id.year_id',
+    })
+  },
+  create: async (data: Partial<ChampionshipEdition>) => {
+    return await pb.collection('championship_editions').create<ChampionshipEdition>(data)
+  },
+  update: async (id: string, data: Partial<ChampionshipEdition>) => {
+    return await pb.collection('championship_editions').update<ChampionshipEdition>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('championship_editions').delete(id)
+  },
+}
+
+// Championship Stages (belonging to Championship Edition / Championship)
 export const championshipStagesService = {
   listByChampionship: async (championshipId: string) => {
     return await pb.collection('championship_stages').getFullList<ChampionshipStage>({
       filter: `championship_id = "${championshipId}"`,
       sort: 'order',
-      expand: 'track',
+      expand: 'track,championship_edition_id',
+    })
+  },
+  listByEdition: async (editionId: string) => {
+    return await pb.collection('championship_stages').getFullList<ChampionshipStage>({
+      filter: `championship_edition_id = "${editionId}"`,
+      sort: 'order',
+      expand: 'track,championship_id,championship_edition_id',
     })
   },
   getOne: async (id: string) => {
     return await pb.collection('championship_stages').getOne<ChampionshipStage>(id, {
-      expand: 'track,championship_id',
+      expand: 'track,championship_id,championship_edition_id',
     })
   },
   create: async (data: Partial<ChampionshipStage>) => {
@@ -100,6 +148,255 @@ export const championshipStagesService = {
   },
   delete: async (id: string) => {
     return await pb.collection('championship_stages').delete(id)
+  },
+}
+
+// Sessions (Stage -> Session, independent entity)
+export const sessionsService = {
+  listByStage: async (stageId: string) => {
+    return await pb.collection('sessions').getFullList<SessionRecord>({
+      filter: `stage_id = "${stageId}"`,
+      sort: 'order',
+      expand: 'stage_id,stage_id.track,stage_id.championship_id',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('sessions').getOne<SessionRecord>(id, {
+      expand: 'stage_id,stage_id.track',
+    })
+  },
+  create: async (data: Partial<SessionRecord>) => {
+    return await pb.collection('sessions').create<SessionRecord>(data)
+  },
+  update: async (id: string, data: Partial<SessionRecord>) => {
+    return await pb.collection('sessions').update<SessionRecord>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('sessions').delete(id)
+  },
+}
+
+// Teams (Global Organization)
+export const teamsService = {
+  list: async () => {
+    return await pb.collection('teams').getFullList<Team>({
+      sort: 'name',
+      expand: 'owner_id',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('teams').getOne<Team>(id, {
+      expand: 'owner_id',
+    })
+  },
+  create: async (data: Partial<Team>) => {
+    return await pb.collection('teams').create<Team>(data)
+  },
+  update: async (id: string, data: Partial<Team>) => {
+    return await pb.collection('teams').update<Team>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('teams').delete(id)
+  },
+}
+
+// Team Participations (Team -> Team Participation -> Championship Edition)
+export const teamParticipationsService = {
+  listByEdition: async (editionId: string) => {
+    return await pb.collection('team_participations').getFullList<TeamParticipation>({
+      filter: `championship_edition_id = "${editionId}"`,
+      sort: 'team_id.name',
+      expand: 'team_id,championship_edition_id',
+    })
+  },
+  listByTeam: async (teamId: string) => {
+    return await pb.collection('team_participations').getFullList<TeamParticipation>({
+      filter: `team_id = "${teamId}"`,
+      sort: '-created',
+      expand: 'team_id,championship_edition_id',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('team_participations').getOne<TeamParticipation>(id, {
+      expand: 'team_id,championship_edition_id',
+    })
+  },
+  create: async (data: Partial<TeamParticipation>) => {
+    return await pb.collection('team_participations').create<TeamParticipation>(data)
+  },
+  update: async (id: string, data: Partial<TeamParticipation>) => {
+    return await pb.collection('team_participations').update<TeamParticipation>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('team_participations').delete(id)
+  },
+}
+
+// Sub Teams (Team Participation -> Sub-team)
+export const subTeamsService = {
+  listByParticipation: async (participationId: string) => {
+    return await pb.collection('sub_teams').getFullList<SubTeam>({
+      filter: `team_participation_id = "${participationId}"`,
+      sort: 'name',
+      expand: 'team_participation_id,team_participation_id.team_id',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('sub_teams').getOne<SubTeam>(id, {
+      expand: 'team_participation_id,team_participation_id.team_id',
+    })
+  },
+  create: async (data: Partial<SubTeam>) => {
+    return await pb.collection('sub_teams').create<SubTeam>(data)
+  },
+  update: async (id: string, data: Partial<SubTeam>) => {
+    return await pb.collection('sub_teams').update<SubTeam>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('sub_teams').delete(id)
+  },
+}
+
+// Team Memberships (Driver <-> Team organizational history)
+export const teamMembershipsService = {
+  listByDriver: async (driverId: string) => {
+    return await pb.collection('team_memberships').getFullList<TeamMembership>({
+      filter: `driver_id = "${driverId}"`,
+      sort: '-start_date',
+      expand: 'team_id,driver_id',
+    })
+  },
+  listByTeam: async (teamId: string, onlyActive = false) => {
+    const filter = onlyActive
+      ? `team_id = "${teamId}" && status = "ativo"`
+      : `team_id = "${teamId}"`
+    return await pb.collection('team_memberships').getFullList<TeamMembership>({
+      filter,
+      sort: 'status,-start_date',
+      expand: 'driver_id,team_id',
+    })
+  },
+  create: async (data: Partial<TeamMembership>) => {
+    return await pb.collection('team_memberships').create<TeamMembership>(data)
+  },
+  update: async (id: string, data: Partial<TeamMembership>) => {
+    return await pb.collection('team_memberships').update<TeamMembership>(id, data)
+  },
+  endMembership: async (id: string, endDate?: string) => {
+    return await pb.collection('team_memberships').update<TeamMembership>(id, {
+      status: 'encerrado',
+      end_date: endDate || new Date().toISOString(),
+    })
+  },
+}
+
+// Registrations (Driver -> Registration -> Championship Edition)
+export const registrationsService = {
+  listByEdition: async (editionId: string, onlyApproved = false) => {
+    const filter = onlyApproved
+      ? `championship_edition_id = "${editionId}" && status = "aprovada"`
+      : `championship_edition_id = "${editionId}"`
+    return await pb.collection('registrations').getFullList<Registration>({
+      filter,
+      sort: 'car_number',
+      expand: 'driver_id,championship_edition_id',
+    })
+  },
+  listByDriver: async (driverId: string) => {
+    return await pb.collection('registrations').getFullList<Registration>({
+      filter: `driver_id = "${driverId}"`,
+      sort: '-created',
+      expand: 'championship_edition_id,championship_edition_id.championship_id',
+    })
+  },
+  getOne: async (id: string) => {
+    return await pb.collection('registrations').getOne<Registration>(id, {
+      expand: 'driver_id,championship_edition_id',
+    })
+  },
+  create: async (data: Partial<Registration>) => {
+    return await pb.collection('registrations').create<Registration>(data)
+  },
+  update: async (id: string, data: Partial<Registration>) => {
+    return await pb.collection('registrations').update<Registration>(id, data)
+  },
+  delete: async (id: string) => {
+    return await pb.collection('registrations').delete(id)
+  },
+}
+
+// Driver Championship Representations (Driver -> Sub-team in Championship Edition with history)
+export const driverRepresentationsService = {
+  listByEdition: async (editionId: string, onlyActive = true) => {
+    const filter = onlyActive
+      ? `championship_edition_id = "${editionId}" && status = "ativa"`
+      : `championship_edition_id = "${editionId}"`
+    return await pb
+      .collection('driver_championship_representations')
+      .getFullList<DriverChampionshipRepresentation>({
+        filter,
+        sort: 'driver_id.name',
+        expand:
+          'driver_id,registration_id,team_participation_id,team_participation_id.team_id,sub_team_id',
+      })
+  },
+  listByDriver: async (driverId: string, editionId?: string) => {
+    const filter = editionId
+      ? `driver_id = "${driverId}" && championship_edition_id = "${editionId}"`
+      : `driver_id = "${driverId}"`
+    return await pb
+      .collection('driver_championship_representations')
+      .getFullList<DriverChampionshipRepresentation>({
+        filter,
+        sort: '-start_date',
+        expand: 'team_participation_id.team_id,sub_team_id,championship_edition_id',
+      })
+  },
+  transferRepresentation: async (params: {
+    previousRepresentationId: string
+    driverId: string
+    registrationId: string
+    editionId: string
+    newTeamParticipationId: string
+    newSubTeamId: string
+    transferDate?: string
+    reason?: string
+  }) => {
+    const now = params.transferDate || new Date().toISOString()
+
+    // 1. Encerrar a representação anterior (sem sobrescrever dados anteriores)
+    await pb
+      .collection('driver_championship_representations')
+      .update(params.previousRepresentationId, {
+        status: 'transferida',
+        end_date: now,
+        change_reason: params.reason || 'Transferência esportiva de equipe',
+      })
+
+    // 2. Criar a nova representação vinculada à anterior
+    return await pb
+      .collection('driver_championship_representations')
+      .create<DriverChampionshipRepresentation>({
+        driver_id: params.driverId,
+        registration_id: params.registrationId,
+        championship_edition_id: params.editionId,
+        team_participation_id: params.newTeamParticipationId,
+        sub_team_id: params.newSubTeamId,
+        start_date: now,
+        status: 'ativa',
+        change_reason: params.reason || 'Transferência esportiva de equipe',
+        previous_representation_id: params.previousRepresentationId,
+      })
+  },
+  create: async (data: Partial<DriverChampionshipRepresentation>) => {
+    return await pb
+      .collection('driver_championship_representations')
+      .create<DriverChampionshipRepresentation>(data)
+  },
+  update: async (id: string, data: Partial<DriverChampionshipRepresentation>) => {
+    return await pb
+      .collection('driver_championship_representations')
+      .update<DriverChampionshipRepresentation>(id, data)
   },
 }
 

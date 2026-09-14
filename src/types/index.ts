@@ -87,8 +87,30 @@ export interface Championship extends RecordModel {
 export type StageDurationType = 'Minutos' | 'Voltas'
 export type StageStatus = 'Agendada' | 'Em andamento' | 'Finalizada'
 
+export interface ChampionshipEdition extends RecordModel {
+  championship_id: string
+  season_id: string
+  edition_code?: string
+  custom_title?: string
+  status: ChampionshipStatus
+  start_date?: string
+  end_date?: string
+  visible_to_pilots?: boolean
+  stages_scoring?: ChampionshipStagesScoring
+  regulation_rules?: string[] | { code?: string; title: string; description?: string }[]
+  expand?: {
+    championship_id?: Championship
+    season_id?: Season & {
+      expand?: {
+        year_id?: Year
+      }
+    }
+  }
+}
+
 export interface ChampionshipStage extends RecordModel {
   championship_id: string
+  championship_edition_id?: string
   order: number
   date?: string
   duration_type: StageDurationType
@@ -100,6 +122,150 @@ export interface ChampionshipStage extends RecordModel {
   expand?: {
     track?: Track
     championship_id?: Championship
+    championship_edition_id?: ChampionshipEdition
+  }
+}
+
+export type SessionTypeEnum = 'practice' | 'qualifying' | 'race' | 'warmup' | 'heat' | 'feature'
+export type SessionStatusEnum = 'agendada' | 'em_andamento' | 'concluida' | 'cancelada'
+
+export interface SessionRecord extends RecordModel {
+  stage_id: string
+  name: string
+  session_type: SessionTypeEnum
+  order: number
+  duration_type?: StageDurationType | 'Horas'
+  duration?: number
+  scheduled_time?: string
+  weather_config?: string
+  inverted_positions?: number
+  status?: SessionStatusEnum
+  legacy_stage_race_id?: string
+  expand?: {
+    stage_id?: ChampionshipStage & {
+      expand?: {
+        track?: Track
+        championship_edition_id?: ChampionshipEdition
+        championship_id?: Championship
+      }
+    }
+  }
+}
+
+export type TeamStatus = 'ativa' | 'inativa'
+
+export interface Team extends RecordModel {
+  name: string
+  short_name?: string
+  logo?: string
+  description?: string
+  country_code?: string
+  owner_id?: string
+  status?: TeamStatus
+  expand?: {
+    owner_id?: User
+  }
+}
+
+export type TeamParticipationStatus = 'inscrita' | 'confirmada' | 'suspensa' | 'encerrada'
+
+export interface TeamParticipation extends RecordModel {
+  team_id: string
+  championship_edition_id: string
+  status?: TeamParticipationStatus
+  notes?: string
+  expand?: {
+    team_id?: Team
+    championship_edition_id?: ChampionshipEdition
+  }
+}
+
+export interface SubTeam extends RecordModel {
+  team_participation_id: string
+  name: string
+  identifier?: string
+  car_class?: string
+  status?: TeamStatus
+  expand?: {
+    team_participation_id?: TeamParticipation & {
+      expand?: {
+        team_id?: Team
+        championship_edition_id?: ChampionshipEdition
+      }
+    }
+  }
+}
+
+export type TeamMembershipRole = 'driver' | 'team_manager' | 'spotter' | 'engineer'
+export type TeamMembershipStatus = 'ativo' | 'encerrado' | 'suspenso'
+
+export interface TeamMembership extends RecordModel {
+  driver_id: string
+  team_id: string
+  role?: TeamMembershipRole
+  status: TeamMembershipStatus
+  start_date: string
+  end_date?: string
+  notes?: string
+  expand?: {
+    driver_id?: Pilot
+    team_id?: Team
+  }
+}
+
+export interface Registration extends RecordModel {
+  driver_id: string
+  championship_edition_id: string
+  car_number?: number
+  car_class?: string
+  status: RegistrationStatus
+  payment_status?: RegistrationPaymentStatus
+  approved_at?: string
+  paid_at?: string
+  notes?: string
+  expand?: {
+    driver_id?: Pilot
+    championship_edition_id?: ChampionshipEdition
+  }
+}
+
+export type RepresentationStatus = 'ativa' | 'encerrada' | 'transferida'
+
+export interface DriverChampionshipRepresentation extends RecordModel {
+  driver_id: string
+  registration_id: string
+  championship_edition_id: string
+  team_participation_id: string
+  sub_team_id: string
+  start_date: string
+  end_date?: string
+  status: RepresentationStatus
+  change_reason?: string
+  previous_representation_id?: string
+  expand?: {
+    driver_id?: Pilot
+    registration_id?: Registration
+    championship_edition_id?: ChampionshipEdition
+    team_participation_id?: TeamParticipation & {
+      expand?: {
+        team_id?: Team
+      }
+    }
+    sub_team_id?: SubTeam
+  }
+}
+
+export interface DomainAuditLog extends RecordModel {
+  actor_user_id?: string
+  event_type: string
+  entity_name: string
+  entity_id: string
+  previous_state?: any
+  new_state?: any
+  reason?: string
+  context?: any
+  expand?: {
+    actor_user_id?: User
   }
 }
 
