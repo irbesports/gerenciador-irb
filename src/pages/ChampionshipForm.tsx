@@ -24,6 +24,12 @@ import {
   stageRacesService,
   scoringPresetsService,
   championshipPilotsService,
+  championshipEditionService,
+  stageService,
+  sessionService,
+  registrationService,
+  teamParticipationService,
+  teamService,
   getFileUrl,
 } from '@/services/api'
 import type {
@@ -125,6 +131,9 @@ export default function ChampionshipForm() {
   const [manufacturersList, setManufacturersList] = useState<Manufacturer[]>([])
   const [isCarModalOpen, setIsCarModalOpen] = useState(false)
   const [modalSelectedCarIds, setModalSelectedCarIds] = useState<string[]>([])
+
+  // Domain Edition State
+  const [editionId, setEditionId] = useState<string>('')
 
   // ETAPAS Tab State
   const [stages, setStages] = useState<LocalStage[]>([])
@@ -316,51 +325,123 @@ export default function ChampionshipForm() {
             }
           }
 
-          // Load championship stages + their races
-          const stList = await championshipStagesService.listByChampionship(id)
+          // Load Championship Edition if exists
+          let currentEdition = await championshipEditionService.getByChampAndSeason(
+            id,
+            champ.season_id || '',
+          )
+          if (!currentEdition) {
+            const eds = await championshipEditionService.listByChampionship(id)
+            if (eds.length > 0) currentEdition = eds[0]
+          }
+          if (currentEdition) {
+            setEditionId(currentEdition.id)
+          }
+
+          // Load championship stages + their sessions/races (preferindo novo domínio stageService)
+          const stList = currentEdition
+            ? await stageService.listByEdition(currentEdition.id)
+            : await championshipStagesService.listByChampionship(id)
+
           const localStages: LocalStage[] = []
 
           for (const s of stList) {
-            const races = await stageRacesService.listByStage(s.id)
+            // Sessões operacionais do novo domínio
+            const sessionsList = await sessionService.listByStage(s.id).catch(() => [])
+            const legacyRaces =
+              sessionsList.length === 0 ? await stageRacesService.listByStage(s.id) : []
+
+            const sessionItems =
+              sessionsList.length > 0
+                ? sessionsList.map((ses) => ({
+                    id: ses.id,
+                    stage_id: ses.stage_id,
+                    order: ses.order,
+                    duration_type: ses.duration_type || 'Minutos',
+                    duration: ses.duration || 50,
+                    start_time: ses.scheduled_start_time || '',
+                    weather: ses.weather_conditions || '',
+                    inverted_positions: 0,
+                    name: ses.name || `Sessão ${ses.order}`,
+                  }))
+                : legacyRaces.map((r) => ({
+                    id: r.id,
+                    stage_id: r.stage_id,
+                    order: r.order,
+                    duration_type: r.duration_type || 'Minutos',
+                    duration: r.duration,
+                    start_time: r.start_time || '',
+                    weather: r.weather || '',
+                    inverted_positions: r.inverted_positions ?? 0,
+                    name: r.name || `Corrida ${r.order}`,
+                  }))
+
             localStages.push({
               id: s.id,
               order: s.order,
-              date: s.date || '',
+              date: (s as any).date || (s as any).scheduled_date || '',
               duration_type: s.duration_type || 'Minutos',
               duration: s.duration || 0,
               points_multiplier: s.points_multiplier ?? 1,
               track: s.track || '',
               track_layout: s.track_layout || '',
               status: s.status || 'Agendada',
-              races: races.map((r) => ({
-                id: r.id,
-                stage_id: r.stage_id,
-                order: r.order,
-                duration_type: r.duration_type || 'Minutos',
-                duration: r.duration,
-                start_time: r.start_time || '',
-                weather: r.weather || '',
-                inverted_positions: r.inverted_positions ?? 0,
-                name: r.name || `Corrida ${r.order}`,
-              })),
+              races: sessionItems,
             })
           }
           setStages(localStages)
 
-          // Load championship pilots
-          const pList = await championshipPilotsService.listByChampionship(id)
-          setChampPilots(
-            pList.map((p) => ({
-              id: p.id,
-              pilot_id: p.pilot || '',
-              name: p.name || '',
-              iracing_id: p.iracing_id || '',
-              number: p.number ?? '',
-              team: p.team || '',
-              number_options: p.number_options || '',
-              car_class: p.car_class || '',
-            })),
-          )
+          // Load pilot registrations (preferindo novo domínio registrations se houver edition)
+          if (currentEdition) {
+            const domainRegs = await registrationService
+              .listByEdition(currentEdition.id)
+              .catch(() => [])
+            if (domainRegs.length > 0) {
+              setChampPilots(
+                domainRegs.map((reg) => {
+                  const drv = (reg as any).expand?.driver_id
+                  return {
+                    id: reg.id,
+                    pilot_id: reg.driver_id,
+                    name: drv?.name || '',
+                    iracing_id: drv?.iracing_id || '',
+                    number: reg.car_number ?? '',
+                    team: '',
+                    number_options: '',
+                    car_class: reg.car_class || '',
+                  }
+                }),
+              )
+            } else {
+              const pList = await championshipPilotsService.listByChampionship(id)
+              setChampPilots(
+                pList.map((p) => ({
+                  id: p.id,
+                  pilot_id: p.pilot || '',
+                  name: p.name || '',
+                  iracing_id: p.iracing_id || '',
+                  number: p.number ?? '',
+                  team: p.team || '',
+                  number_options: p.number_options || '',
+                  car_class: p.car_class || '',
+                })),
+              )
+            }
+          } else {
+            const pList = await championshipPilotsService.listByChampionship(id)
+            setChampPilots(
+              pList.map((p) => ({
+                id: p.id,
+                pilot_id: p.pilot || '',
+                name: p.name || '',
+                iracing_id: p.iracing_id || '',
+                number: p.number ?? '',
+                team: p.team || '',
+                number_options: p.number_options || '',
+                car_class: p.car_class || '',
+              })),
+            )
+          }
         }
       } catch (err) {
         console.error(err)
@@ -548,6 +629,53 @@ export default function ChampionshipForm() {
         champId = created.id
       }
 
+      // NOVO DOMÍNIO: Garantir Championship Edition vinculada à temporada
+      let currentEditionId = editionId
+      if (champId && seasonId) {
+        let edition = await championshipEditionService.getByChampAndSeason(champId, seasonId)
+        if (!edition) {
+          const edCode = `${name.replace(/\s+/g, '-').toUpperCase().slice(0, 10)}-${Date.now().toString().slice(-4)}`
+          edition = await championshipEditionService.create({
+            championship_id: champId,
+            season_id: seasonId,
+            edition_code: edCode,
+            status:
+              status === 'concluido'
+                ? 'encerrada'
+                : status === 'rascunho'
+                  ? 'planejada'
+                  : 'em_andamento',
+            rules_config: {
+              drop_scores: dropScores,
+              pilots_per_team: pilotsPerTeam,
+              scoring_pilots_per_team: scoringPilotsPerTeam,
+              min_lap_percentage: minLapPercentage,
+              bonus_fastest_lap: bonusFastestLap,
+              bonus_pole_position: bonusPolePosition,
+            },
+          })
+        } else {
+          await championshipEditionService.update(edition.id, {
+            status:
+              status === 'concluido'
+                ? 'encerrada'
+                : status === 'rascunho'
+                  ? 'planejada'
+                  : 'em_andamento',
+            rules_config: {
+              drop_scores: dropScores,
+              pilots_per_team: pilotsPerTeam,
+              scoring_pilots_per_team: scoringPilotsPerTeam,
+              min_lap_percentage: minLapPercentage,
+              bonus_fastest_lap: bonusFastestLap,
+              bonus_pole_position: bonusPolePosition,
+            },
+          })
+        }
+        currentEditionId = edition.id
+        setEditionId(edition.id)
+      }
+
       if (champId) {
         // Sync scoring_rules backwards compatibility
         const rulesForLegacy = multiClass ? multiConfigs[0]?.rules || [] : singleConfig.rules
@@ -580,12 +708,14 @@ export default function ChampionshipForm() {
           }
         }
 
-        // 3. Save / Update stages and their races
+        // 3. Save / Update stages and their sessions no NOVO DOMÍNIO (com fallback de compatibilidade)
         for (const st of stages) {
           const stageData: any = {
             championship_id: champId,
+            championship_edition_id: currentEditionId || undefined,
             order: st.order,
             date: st.date || undefined,
+            scheduled_date: st.date || undefined,
             duration_type: st.duration_type,
             duration: Number(st.duration) || 0,
             points_multiplier: Number(st.points_multiplier) || 1,
@@ -596,15 +726,42 @@ export default function ChampionshipForm() {
 
           let savedStageId = st.id
           if (savedStageId) {
-            await championshipStagesService.update(savedStageId, stageData)
+            await stageService.update(savedStageId, stageData)
           } else {
-            const createdStage = await championshipStagesService.create(stageData)
+            const createdStage = await stageService.create(stageData)
             savedStageId = createdStage.id
           }
 
-          // Races inside this stage
+          // Sessions no NOVO DOMÍNIO (extensíveis, sem travar em corridas fixas)
           if (savedStageId) {
             for (const rc of st.races) {
+              const sessionData: any = {
+                stage_id: savedStageId,
+                name: rc.name || `Corrida ${rc.order}`,
+                session_type: 'race',
+                order: rc.order,
+                status: 'agendada',
+                scheduled_start_time: rc.start_time || undefined,
+                duration_type: rc.duration_type,
+                duration: Number(rc.duration) || 50,
+                weather_conditions: rc.weather || undefined,
+              }
+
+              // Salvar na coleção nova 'sessions'
+              try {
+                if (rc.id) {
+                  await sessionService.update(rc.id, sessionData).catch(async () => {
+                    // Fallback se id era da stage_races
+                    await sessionService.create(sessionData)
+                  })
+                } else {
+                  await sessionService.create(sessionData)
+                }
+              } catch (sessionErr) {
+                console.warn('Erro ao salvar session no novo domínio:', sessionErr)
+              }
+
+              // Manter compatibilidade com stage_races durante transição
               const raceData = {
                 stage_id: savedStageId,
                 order: rc.order,
@@ -615,11 +772,10 @@ export default function ChampionshipForm() {
                 inverted_positions: Number(rc.inverted_positions) || 0,
                 name: rc.name || `Corrida ${rc.order}`,
               }
-
               if (rc.id) {
-                await stageRacesService.update(rc.id, raceData)
+                await stageRacesService.update(rc.id, raceData).catch(() => {})
               } else {
-                await stageRacesService.create(raceData)
+                await stageRacesService.create(raceData).catch(() => {})
               }
             }
           }
@@ -634,8 +790,33 @@ export default function ChampionshipForm() {
           }
         }
 
-        // 5. Save / Update championship pilots (Inscrições)
+        // 5. Save / Update registrations no NOVO DOMÍNIO (registrations)
         for (const p of champPilots) {
+          if (currentEditionId && p.pilot_id) {
+            try {
+              const regData: any = {
+                driver_id: p.pilot_id,
+                championship_edition_id: currentEditionId,
+                car_number: p.number !== '' ? Number(p.number) : undefined,
+                car_class: p.car_class || undefined,
+                status: 'aprovada',
+                payment_status: 'pago',
+              }
+              const existingReg = await registrationService.getByDriverAndEdition(
+                p.pilot_id,
+                currentEditionId,
+              )
+              if (existingReg) {
+                await registrationService.update(existingReg.id, regData)
+              } else {
+                await registrationService.create(regData)
+              }
+            } catch (regErr) {
+              console.warn('Erro ao sincronizar registration no novo domínio:', regErr)
+            }
+          }
+
+          // Gravação legada para tolerância e retrocompatibilidade
           const pilotData: any = {
             championship_id: champId,
             pilot: p.pilot_id || undefined,
@@ -650,9 +831,9 @@ export default function ChampionshipForm() {
           }
 
           if (p.id) {
-            await championshipPilotsService.update(p.id, pilotData)
+            await championshipPilotsService.update(p.id, pilotData).catch(() => {})
           } else {
-            await championshipPilotsService.create(pilotData)
+            await championshipPilotsService.create(pilotData).catch(() => {})
           }
         }
       }

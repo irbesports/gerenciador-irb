@@ -1113,3 +1113,12 @@ export const usersService = {
     return await pb.collection('users').update<User>(id, { role })
   },
 }
+
+// Re-export specialized domain services for seamless migration
+export { domainAuditService } from './domainAuditService'
+export { championshipEditionService } from './championshipEditionService'
+export { stageService } from './stageService'
+export { sessionService } from './sessionService'
+export { teamParticipationService, subTeamService } from './teamParticipationService'
+export { teamMembershipService, teamService } from './teamMembershipService'
+export { registrationService, driverRepresentationService } from './registrationService'

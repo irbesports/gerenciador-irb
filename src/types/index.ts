@@ -81,6 +81,8 @@ export interface Championship extends RecordModel {
       }
     }
     cars?: Car[]
+    active_edition?: ChampionshipEdition
+    editions?: ChampionshipEdition[]
   }
 }
 

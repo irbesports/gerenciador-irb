@@ -14,8 +14,14 @@ import {
   ArrowUpDown,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { championshipsService, seasonsService, yearsService, pilotsService } from '@/services/api'
-import type { Championship, Season, Year, Pilot } from '@/types'
+import {
+  championshipsService,
+  championshipEditionService,
+  seasonsService,
+  yearsService,
+  pilotsService,
+} from '@/services/api'
+import type { Championship, ChampionshipEdition, Season, Year, Pilot } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -36,6 +42,7 @@ export default function ChampionshipsList() {
   const { toast } = useToast()
 
   const [championships, setChampionships] = useState<Championship[]>([])
+  const [editions, setEditions] = useState<ChampionshipEdition[]>([])
   const [seasons, setSeasons] = useState<Season[]>([])
   const [years, setYears] = useState<Year[]>([])
   const [pilots, setPilots] = useState<Pilot[]>([])
@@ -48,13 +55,24 @@ export default function ChampionshipsList() {
 
   const loadData = async () => {
     try {
-      const [c, s, y, p] = await Promise.all([
+      const [c, s, y, p, eds] = await Promise.all([
         championshipsService.list(),
         seasonsService.list(),
         yearsService.list(),
         pilotsService.list(),
+        championshipEditionService.listBySeason('').catch(async () => {
+          // buscar todas as edições existentes no novo domínio
+          const pbModule = await import('@/lib/pocketbase/client')
+          return await pbModule.pb
+            .collection('championship_editions')
+            .getFullList<ChampionshipEdition>({
+              sort: '-created',
+              expand: 'championship_id,season_id,season_id.year_id',
+            })
+        }),
       ])
       setChampionships(c)
+      setEditions(eds)
       setSeasons(s)
       setYears(y)
       setPilots(p)
@@ -84,26 +102,30 @@ export default function ChampionshipsList() {
     return seasons.filter((s) => s.year_id === selectedYearId)
   }, [seasons, selectedYearId])
 
-  // Filtered championships
+  // Filtered championships resolvendo Season preferencialmente via Championship Edition
   const filteredChampionships = useMemo(() => {
     return championships.filter((c) => {
       // Search text
       const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase())
 
+      // Obter Season autoritativa através da Championship Edition correspondente
+      const edition = editions.find((ed) => ed.championship_id === c.id)
+      const effectiveSeasonId = edition?.season_id || c.season_id
+
       // Season filter
-      if (selectedSeasonId !== 'all' && c.season_id !== selectedSeasonId) {
+      if (selectedSeasonId !== 'all' && effectiveSeasonId !== selectedSeasonId) {
         return false
       }
 
       // Year filter (if season not specifically chosen)
       if (selectedYearId !== 'all') {
-        const season = seasons.find((s) => s.id === c.season_id)
+        const season = seasons.find((s) => s.id === effectiveSeasonId)
         if (!season || season.year_id !== selectedYearId) return false
       }
 
       return matchesSearch
     })
-  }, [championships, search, selectedYearId, selectedSeasonId, seasons])
+  }, [championships, editions, search, selectedYearId, selectedSeasonId, seasons])
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -229,7 +251,9 @@ export default function ChampionshipsList() {
               </thead>
               <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                 {filteredChampionships.map((champ) => {
-                  const season = seasons.find((s) => s.id === champ.season_id)
+                  const edition = editions.find((ed) => ed.championship_id === champ.id)
+                  const effectiveSeasonId = edition?.season_id || champ.season_id
+                  const season = seasons.find((s) => s.id === effectiveSeasonId)
                   const seasonYear = season?.year_id
                     ? years.find((y) => y.id === season.year_id)?.year
                     : null
