@@ -150,6 +150,7 @@ export function parseIracingJson(fileContent: string | object): IracingParsedFil
 
   const all_sessions: IracingParsedSession[] = rawSessions.map((session, sIdx) => {
     const sName = String(session.simsession_name || `Sessão ${sIdx + 1}`).trim()
+    const sType = Number(session.simsession_type ?? 0)
     const sTypeName = String(session.simsession_type_name || '').trim()
     const upperName = sName.toUpperCase()
     const upperTypeName = sTypeName.toUpperCase()

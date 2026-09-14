@@ -1,6 +1,12 @@
 migrate(
   (app) => {
-    // 1. Initial admin user
+    // 1. Initial admin user - bootstrap via secure environment or random generated entropy
+    // Credenciais hardcoded removidas conforme auditoria de segurança P0
+    const adminInitialPass =
+      $secrets.get('ADMIN_INITIAL_PASSWORD') ||
+      $os.getenv('ADMIN_INITIAL_PASSWORD') ||
+      $security.randomString(32)
+
     let adminUser
     try {
       adminUser = app.findAuthRecordByEmail('_pb_users_auth_', 'rsanque@gmail.com')
@@ -12,7 +18,7 @@ migrate(
       const users = app.findCollectionByNameOrId('_pb_users_auth_')
       adminUser = new Record(users)
       adminUser.setEmail('rsanque@gmail.com')
-      adminUser.setPassword('Skip@Pass')
+      adminUser.setPassword(adminInitialPass)
       adminUser.setVerified(true)
       adminUser.set('name', 'Renato Sanque')
       adminUser.set('role', 'colaborador')
@@ -20,6 +26,11 @@ migrate(
     }
 
     // Also create a sample client user if not exists
+    const clientInitialPass =
+      $secrets.get('DEMO_CLIENT_PASSWORD') ||
+      $os.getenv('DEMO_CLIENT_PASSWORD') ||
+      $security.randomString(32)
+
     let clientUser
     try {
       clientUser = app.findAuthRecordByEmail('_pb_users_auth_', 'piloto@racingmanager.com')
@@ -27,7 +38,7 @@ migrate(
       const users = app.findCollectionByNameOrId('_pb_users_auth_')
       clientUser = new Record(users)
       clientUser.setEmail('piloto@racingmanager.com')
-      clientUser.setPassword('Skip@Pass')
+      clientUser.setPassword(clientInitialPass)
       clientUser.setVerified(true)
       clientUser.set('name', 'Carlos Silva')
       clientUser.set('role', 'cliente')

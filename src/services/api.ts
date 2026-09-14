@@ -610,6 +610,7 @@ export const notificationsService = {
     )
   },
   create: async (data: Partial<AppNotification>) => {
+    // Apenas colaboradores podem chamar create via client SDK; para outros perfis o backend rejeita com Deny-by-default
     return await pb.collection('notifications').create<AppNotification>(data)
   },
   delete: async (id: string) => {

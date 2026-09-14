@@ -37,8 +37,12 @@ export default function Register() {
       setError('Por favor preencha seu e-mail.')
       return
     }
-    if (password.length < 8) {
-      setError('A senha deve conter no mínimo 8 caracteres.')
+    if (password.length < 15) {
+      setError('A política de segurança exige senha com no mínimo 15 caracteres.')
+      return
+    }
+    if (password.length > 128) {
+      setError('A senha deve ter no máximo 128 caracteres.')
       return
     }
     if (password !== passwordConfirm) {
@@ -163,7 +167,7 @@ export default function Register() {
                   htmlFor="reg-pass"
                   className="text-xs font-semibold uppercase tracking-wider text-gray-700"
                 >
-                  Senha (mín 8)
+                  Senha (mín 15)
                 </Label>
                 <Input
                   id="reg-pass"

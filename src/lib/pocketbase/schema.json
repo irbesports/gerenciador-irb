@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T20:13:00.495Z",
+  "generatedAt": "2026-09-14T20:27:36.772Z",
   "collections": [
     {
       "name": "users",
@@ -8,8 +8,8 @@
         "list": "id = @request.auth.id",
         "view": "id = @request.auth.id",
         "create": "@request.body.role = \"\" || @request.body.role = \"cliente\" || @request.auth.role = \"colaborador\"",
-        "update": "id = @request.auth.id && (@request.body.role = \"\" || @request.body.role = role || @request.auth.role = \"colaborador\")",
-        "delete": "id = @request.auth.id"
+        "update": "id = @request.auth.id && (@request.body.role = \"\" || @request.body.role = role || @request.auth.role = \"colaborador\") && (@request.body.verified = \"\" || @request.body.verified = verified || @request.auth.role = \"colaborador\")",
+        "delete": "@request.auth.role = \"colaborador\""
       },
       "fields": [
         {
@@ -1306,9 +1306,9 @@
       "apiRules": {
         "list": "@request.auth.id != \"\"",
         "view": "@request.auth.id != \"\"",
-        "create": "@request.auth.id != \"\"",
-        "update": "@request.auth.id != \"\" && user_id = @request.auth.id",
-        "delete": "@request.auth.role = \"colaborador\" || user_id = @request.auth.id"
+        "create": "@request.auth.id != \"\" && user_id = @request.auth.id",
+        "update": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && user_id = @request.auth.id)",
+        "delete": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && user_id = @request.auth.id)"
       },
       "fields": [
         {
@@ -2075,7 +2075,7 @@
       "apiRules": {
         "list": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && recipient_user_id = @request.auth.id)",
         "view": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && recipient_user_id = @request.auth.id)",
-        "create": "@request.auth.role = \"colaborador\" || @request.auth.id != \"\"",
+        "create": "@request.auth.role = \"colaborador\"",
         "update": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && recipient_user_id = @request.auth.id)",
         "delete": "@request.auth.role = \"colaborador\" || (@request.auth.id != \"\" && recipient_user_id = @request.auth.id)"
       },

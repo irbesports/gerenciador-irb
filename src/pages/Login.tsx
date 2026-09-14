@@ -12,8 +12,8 @@ export default function Login() {
   const navigate = useNavigate()
   const { login } = useAuth()
 
-  const [email, setEmail] = useState('rsanque@gmail.com')
-  const [password, setPassword] = useState('Skip@Pass')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -119,25 +119,6 @@ export default function Login() {
                   required
                 />
               </div>
-            </div>
-
-            {/* Quick Demo Credentials Helper */}
-            <div className="p-3 bg-gray-50 rounded-lg border border-dashed border-gray-300 text-xs text-gray-600 space-y-1">
-              <div className="font-semibold text-gray-800 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Acesso Pré-configurado:
-              </div>
-              <div className="flex justify-between">
-                <span>Colaborador (Admin):</span>
-                <span className="font-mono font-medium text-gray-700">rsanque@gmail.com</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Cliente (Piloto):</span>
-                <span className="font-mono font-medium text-gray-700">
-                  piloto@racingmanager.com
-                </span>
-              </div>
-              <div className="text-[11px] text-gray-500">Senha: Skip@Pass</div>
             </div>
           </CardContent>
 

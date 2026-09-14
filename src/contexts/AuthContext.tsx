@@ -83,6 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string
     role?: UserRole
   }) => {
+    if (!data.password || data.password.length < 15) {
+      throw new Error('A senha deve conter no mínimo 15 caracteres.')
+    }
     // Cadastro público sempre cria role: 'cliente'. O backend também força no hook e nas regras de coleção.
     await pb.collection('users').create({
       email: data.email,
